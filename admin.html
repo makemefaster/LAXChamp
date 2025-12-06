@@ -34,43 +34,63 @@
                 <div class="bg-white p-6 rounded-xl shadow-sm">
                     <h2 class="font-bold text-slate-800 mb-2">2. Pitches</h2>
                     <div class="flex gap-2">
-                        <input type="number" id="pitchCount" value="4" class="border rounded p-2 w-20 text-center">
+                        <input type="number" id="pitchCount" value="4" class="border rounded p-2 w-20 text-center font-bold">
                         <button onclick="updatePitches()" class="flex-1 bg-slate-800 text-white py-2 rounded font-bold text-sm">Set Pitches</button>
                     </div>
                 </div>
 
-                <!-- 3. GENERATOR -->
+                <!-- 3. SMART SCHEDULER -->
                 <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-green-500">
-                    <h2 class="font-bold text-slate-800 mb-2">3. Scheduler</h2>
-                    <label class="text-xs font-bold text-slate-500">Category</label>
-                    <select id="catSelect" class="w-full border rounded p-2 mb-3 text-sm"></select>
+                    <h2 class="font-bold text-slate-800 mb-2">3. Smart Scheduler</h2>
                     
-                    <label class="text-xs font-bold text-slate-500">Match Duration (mins)</label>
-                    <input type="number" id="matchDuration" value="15" class="w-full border rounded p-2 mb-3 text-sm">
+                    <div class="space-y-3 mb-4">
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 block mb-1">Category</label>
+                            <select id="catSelect" class="w-full border rounded p-2 text-sm bg-white"></select>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 block mb-1">Start Time</label>
+                                <input type="time" id="startTimeInput" value="09:00" class="w-full border rounded p-2 text-sm">
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-slate-500 block mb-1">Match Mins</label>
+                                <input type="number" id="matchDuration" value="15" class="w-full border rounded p-2 text-sm">
+                            </div>
+                        </div>
 
-                    <button onclick="generateSchedule()" class="w-full bg-green-600 text-white py-3 rounded font-bold hover:bg-green-700">Generate Round Robin</button>
+                        <div>
+                            <label class="text-xs font-bold text-slate-500 block mb-1">Changeover Gap (Mins)</label>
+                            <input type="number" id="gapDuration" value="5" class="w-full border rounded p-2 text-sm">
+                        </div>
+                    </div>
+
+                    <button onclick="generateSchedule()" class="w-full bg-green-600 text-white py-3 rounded font-bold hover:bg-green-700 shadow-sm">Generate Round Robin</button>
+                    <p class="text-[0.65rem] text-slate-400 mt-2 text-center">Prevents teams playing twice at once.</p>
                 </div>
 
-                <button onclick="wipeData()" class="w-full text-red-500 text-xs underline">Reset Event Data</button>
+                <button onclick="wipeData()" class="w-full text-red-500 text-xs underline hover:text-red-700">Reset All Event Data</button>
             </div>
 
             <!-- RIGHT: SCHEDULE -->
             <div class="lg:col-span-2">
-                <div class="bg-white rounded-xl shadow-sm overflow-hidden">
-                    <div class="p-4 border-b bg-slate-50 flex justify-between items-center">
+                <div class="bg-white rounded-xl shadow-sm overflow-hidden min-h-[500px]">
+                    <div class="p-4 border-b bg-slate-50 flex justify-between items-center sticky top-0 z-10">
                         <h2 class="font-bold text-slate-800">Master Schedule</h2>
-                        <span id="matchCount" class="text-xs bg-slate-200 px-2 py-1 rounded">0 Matches</span>
+                        <span id="matchCount" class="text-xs bg-slate-200 px-2 py-1 rounded font-bold text-slate-600">0 Matches</span>
                     </div>
-                    <div class="overflow-x-auto">
+                    <div class="overflow-x-auto max-h-[600px]">
                         <table class="w-full text-sm text-left">
-                            <thead class="bg-slate-50 text-xs uppercase text-slate-500">
+                            <thead class="bg-slate-50 text-xs uppercase text-slate-500 sticky top-0 shadow-sm">
                                 <tr>
                                     <th class="px-4 py-3">Time</th>
                                     <th class="px-4 py-3">Pitch</th>
                                     <th class="px-4 py-3">Cat</th>
-                                    <th class="px-4 py-3">Home</th>
-                                    <th class="px-4 py-3">Away</th>
-                                    <th class="px-4 py-3">Score</th>
+                                    <th class="px-4 py-3 text-right">Home</th>
+                                    <th class="px-4 py-3 text-center text-xs text-slate-400">vs</th>
+                                    <th class="px-4 py-3 text-left">Away</th>
+                                    <th class="px-4 py-3 text-center">Score</th>
                                     <th class="px-4 py-3">Status</th>
                                 </tr>
                             </thead>
@@ -85,9 +105,9 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-        import { getDatabase, ref, set, onValue, push } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 
-        // --- FIREBASE CONFIG (Reuse your keys) ---
+        // --- FIREBASE CONFIG ---
         const firebaseConfig = {
             apiKey: "AIzaSyAkTwI7TbJwXPbVQ2OrKjAAIaWLvyfuudc",
             authDomain: "sprintfutures.firebaseapp.com",
@@ -117,7 +137,7 @@
             matches = data.matches || [];
             pitches = data.pitches || 4;
             
-            document.getElementById('teamCount').innerText = `${teams.length} teams`;
+            document.getElementById('teamCount').innerText = `${teams.length} teams loaded`;
             document.getElementById('matchCount').innerText = `${matches.length} Matches`;
             document.getElementById('pitchCount').value = pitches;
             
@@ -140,7 +160,6 @@
                     });
                 }
             });
-            // Append to existing
             set(ref(db, `lax/${eventID}/teams`), [...teams, ...newTeams]);
             document.getElementById('teamInput').value = '';
         };
@@ -151,89 +170,138 @@
         };
 
         window.wipeData = function() {
-            if(confirm("Delete ALL tournament data?")) {
+            if(confirm("Are you sure? This deletes ALL matches and teams.")) {
                 set(ref(db, `lax/${eventID}`), null);
             }
         };
 
+        // --- SMART SCHEDULER ALGORITHM ---
         window.generateSchedule = function() {
             const cat = document.getElementById('catSelect').value;
             const duration = parseInt(document.getElementById('matchDuration').value);
-            if(!cat) return alert("Select Category");
+            const gap = parseInt(document.getElementById('gapDuration').value);
+            let startInput = document.getElementById('startTimeInput').value;
 
+            if(!cat) return alert("Please select a Category first.");
             const catTeams = teams.filter(t => t.cat === cat);
-            if(catTeams.length < 2) return alert("Not enough teams in category");
+            if(catTeams.length < 2) return alert("Need at least 2 teams to schedule.");
 
-            // Simple Round Robin Logic
-            let newMatches = [];
-            let startTime = 9 * 60; // 09:00 in minutes
-            let currentPitch = 1;
-            
-            // Create pairings
+            // 1. Create All Pairings (Round Robin)
+            let pendingMatches = [];
             for(let i=0; i<catTeams.length; i++) {
                 for(let j=i+1; j<catTeams.length; j++) {
-                    newMatches.push({
-                        id: Date.now() + Math.random(),
+                    pendingMatches.push({
+                        id: Date.now() + Math.random() + i + j,
                         cat: cat,
                         teamA: catTeams[i].name,
                         teamB: catTeams[j].name,
                         scoreA: 0,
                         scoreB: 0,
-                        status: 'scheduled', // scheduled, active, finished
-                        pitch: currentPitch,
-                        time: formatTime(startTime)
+                        status: 'scheduled'
                     });
+                }
+            }
+            // Shuffle slightly to avoid A playing 3 times in a row if possible (simple shuffle)
+            pendingMatches.sort(() => Math.random() - 0.5);
 
-                    // Rotate Pitch / Time
-                    currentPitch++;
-                    if(currentPitch > pitches) {
-                        currentPitch = 1;
-                        startTime += duration + 5; // Add 5 min break
+            // 2. Convert Start Time to Minutes
+            let [h, m] = startInput.split(':').map(Number);
+            let currentTimeMins = h * 60 + m;
+
+            let newSchedule = [];
+            
+            // 3. Fill Time Slots
+            while(pendingMatches.length > 0) {
+                let slotMatches = [];
+                let busyTeams = new Set(); // Track who is playing in this time slot
+                let availablePitches = pitches;
+
+                // Try to fit as many matches into this time slot as possible
+                // (Iterate backwards so we can splice safely)
+                for (let i = pendingMatches.length - 1; i >= 0; i--) {
+                    if (availablePitches <= 0) break;
+
+                    let match = pendingMatches[i];
+                    
+                    // CONFLICT CHECK: Is either team already playing right now?
+                    if (!busyTeams.has(match.teamA) && !busyTeams.has(match.teamB)) {
+                        // No conflict! Schedule them.
+                        match.pitch = (pitches - availablePitches) + 1; // Pitch 1, 2, 3...
+                        match.time = formatTime(currentTimeMins);
+                        
+                        slotMatches.push(match);
+                        
+                        // Mark teams as busy
+                        busyTeams.add(match.teamA);
+                        busyTeams.add(match.teamB);
+                        availablePitches--;
+                        
+                        // Remove from pending list
+                        pendingMatches.splice(i, 1);
                     }
+                }
+
+                // Add scheduled slot to final list
+                newSchedule.push(...slotMatches);
+
+                // Move clock forward (Match length + Changeover gap)
+                // Only move clock if we actually scheduled something, otherwise infinite loop safety
+                if (slotMatches.length > 0 || pendingMatches.length > 0) {
+                    currentTimeMins += duration + gap;
                 }
             }
 
-            // Append
-            set(ref(db, `lax/${eventID}/matches`), [...matches, ...newMatches]);
+            // 4. Save to Database (Append to existing matches from other categories)
+            set(ref(db, `lax/${eventID}/matches`), [...matches, ...newSchedule]);
+            alert(`Generated ${newSchedule.length} matches for ${cat}.`);
         };
 
         // HELPERS
         function updateCatSelect() {
-            const cats = [...new Set(teams.map(t => t.cat))];
+            const cats = [...new Set(teams.map(t => t.cat))].sort();
             const sel = document.getElementById('catSelect');
+            // Keep selection if possible
+            const current = sel.value;
             sel.innerHTML = '';
             cats.forEach(c => {
                 sel.innerHTML += `<option value="${c}">${c}</option>`;
             });
+            if (cats.includes(current)) sel.value = current;
         }
 
         function renderSchedule() {
             const tb = document.getElementById('scheduleBody');
             tb.innerHTML = '';
-            // Sort by time
+            // Sort by time string (HH:MM)
             matches.sort((a,b) => a.time.localeCompare(b.time));
 
             matches.forEach(m => {
-                let statusBadge = `<span class="text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded">Upcoming</span>`;
-                if(m.status === 'active') statusBadge = `<span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded animate-pulse">Live</span>`;
-                if(m.status === 'finished') statusBadge = `<span class="text-xs bg-slate-800 text-white px-2 py-1 rounded">FT</span>`;
+                let statusBadge = `<span class="text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded font-mono">UPCOMING</span>`;
+                if(m.status === 'active') statusBadge = `<span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded animate-pulse font-bold">LIVE</span>`;
+                if(m.status === 'finished') statusBadge = `<span class="text-xs bg-slate-800 text-white px-2 py-1 rounded font-bold">FT</span>`;
+
+                // Highlight if score exists
+                let scoreClass = (m.scoreA > 0 || m.scoreB > 0) ? "text-slate-800" : "text-slate-400";
 
                 tb.innerHTML += `
-                <tr class="hover:bg-slate-50">
-                    <td class="px-4 py-3 font-mono">${m.time}</td>
-                    <td class="px-4 py-3 font-bold">P${m.pitch}</td>
-                    <td class="px-4 py-3"><span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded">${m.cat}</span></td>
-                    <td class="px-4 py-3 text-right">${m.teamA}</td>
-                    <td class="px-4 py-3 text-left">${m.teamB}</td>
-                    <td class="px-4 py-3 font-mono font-bold text-center bg-slate-50">${m.scoreA} - ${m.scoreB}</td>
-                    <td class="px-4 py-3">${statusBadge}</td>
+                <tr class="hover:bg-slate-50 transition border-b border-slate-50 last:border-0">
+                    <td class="px-4 py-3 font-mono text-slate-600 font-bold whitespace-nowrap">${m.time}</td>
+                    <td class="px-4 py-3"><span class="bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded text-xs font-bold">P${m.pitch}</span></td>
+                    <td class="px-4 py-3"><span class="text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded border border-indigo-100 font-semibold whitespace-nowrap">${m.cat}</span></td>
+                    <td class="px-4 py-3 text-right font-medium text-slate-700">${m.teamA}</td>
+                    <td class="px-4 py-3 text-center text-xs text-slate-300">vs</td>
+                    <td class="px-4 py-3 text-left font-medium text-slate-700">${m.teamB}</td>
+                    <td class="px-4 py-3 text-center"><span class="font-mono font-bold ${scoreClass} bg-slate-100 px-2 py-1 rounded">${m.scoreA} - ${m.scoreB}</span></td>
+                    <td class="px-4 py-3 text-center">${statusBadge}</td>
                 </tr>`;
             });
         }
 
         function formatTime(minutes) {
-            const h = Math.floor(minutes / 60);
-            const m = minutes % 60;
+            let h = Math.floor(minutes / 60);
+            let m = minutes % 60;
+            // Handle day rollover if needed (optional)
+            if (h >= 24) h -= 24;
             return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
         }
 
