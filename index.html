@@ -55,11 +55,12 @@
 
     </div>
 
-    <script>
-        let currentRole = '';
-
-        function setRole(role) {
-            currentRole = role;
+    <script type="module">
+        // Just importing to wake up the app, logic handles the rest
+        import { db } from './firebase-config.js';
+        
+        window.setRole = function(role) {
+            window.currentRole = role;
             document.querySelector('.space-y-3').classList.add('hidden');
             document.getElementById('loginForm').classList.remove('hidden');
             
@@ -70,22 +71,22 @@
             };
             document.getElementById('loginTitle').innerText = titles[role];
 
-            // Admin needs PIN
+            // Admin/Umpire needs PIN
             if(role === 'admin' || role === 'umpire') {
                 document.getElementById('pinContainer').classList.remove('hidden');
             } else {
                 document.getElementById('pinContainer').classList.add('hidden');
             }
-        }
+        };
 
-        function reset() {
+        window.reset = function() {
             document.querySelector('.space-y-3').classList.remove('hidden');
             document.getElementById('loginForm').classList.add('hidden');
             document.getElementById('eventId').value = '';
             document.getElementById('eventPin').value = '';
-        }
+        };
 
-        function go() {
+        window.go = function() {
             const id = document.getElementById('eventId').value.trim().toLowerCase();
             const pin = document.getElementById('eventPin').value.trim();
             
@@ -94,21 +95,19 @@
             let url = '';
             let params = `?event=${id}`;
 
-            if (currentRole === 'spectator') {
+            if (window.currentRole === 'spectator') {
                 url = 'live.html';
-            } else if (currentRole === 'umpire') {
-                // Simple check (In real app, check DB)
+            } else if (window.currentRole === 'umpire') {
                 if(pin !== '1234') return alert("Incorrect Umpire PIN"); 
                 url = 'umpire.html';
-            } else if (currentRole === 'admin') {
-                 // Simple check (In real app, check DB)
+            } else if (window.currentRole === 'admin') {
                  if(pin !== '9999') return alert("Incorrect Admin PIN");
                  url = 'admin.html';
                  params += '&auth=admin';
             }
 
             window.location.href = url + params;
-        }
+        };
     </script>
 </body>
 </html>
