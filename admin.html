@@ -104,22 +104,9 @@
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+        import { db } from './firebase-config.js';
+        import { ref, set, onValue } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 
-        // --- FIREBASE CONFIG ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyAkTwI7TbJwXPbVQ2OrKjAAIaWLvyfuudc",
-            authDomain: "sprintfutures.firebaseapp.com",
-            databaseURL: "https://sprintfutures-default-rtdb.firebaseio.com",
-            projectId: "sprintfutures",
-            storageBucket: "sprintfutures.firebasestorage.app",
-            messagingSenderId: "535060943616",
-            appId: "1:535060943616:web:d15fc5225538eaeb3459e5"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
         const params = new URLSearchParams(window.location.search);
         const eventID = params.get('event');
 
@@ -201,10 +188,9 @@
                     });
                 }
             }
-            // Shuffle slightly to avoid A playing 3 times in a row if possible (simple shuffle)
             pendingMatches.sort(() => Math.random() - 0.5);
 
-            // 2. Convert Start Time to Minutes
+            // 2. Convert Start Time
             let [h, m] = startInput.split(':').map(Number);
             let currentTimeMins = h * 60 + m;
 
@@ -213,45 +199,31 @@
             // 3. Fill Time Slots
             while(pendingMatches.length > 0) {
                 let slotMatches = [];
-                let busyTeams = new Set(); // Track who is playing in this time slot
+                let busyTeams = new Set();
                 let availablePitches = pitches;
 
-                // Try to fit as many matches into this time slot as possible
-                // (Iterate backwards so we can splice safely)
                 for (let i = pendingMatches.length - 1; i >= 0; i--) {
                     if (availablePitches <= 0) break;
-
                     let match = pendingMatches[i];
                     
-                    // CONFLICT CHECK: Is either team already playing right now?
                     if (!busyTeams.has(match.teamA) && !busyTeams.has(match.teamB)) {
-                        // No conflict! Schedule them.
-                        match.pitch = (pitches - availablePitches) + 1; // Pitch 1, 2, 3...
+                        match.pitch = (pitches - availablePitches) + 1;
                         match.time = formatTime(currentTimeMins);
                         
                         slotMatches.push(match);
-                        
-                        // Mark teams as busy
                         busyTeams.add(match.teamA);
                         busyTeams.add(match.teamB);
                         availablePitches--;
-                        
-                        // Remove from pending list
                         pendingMatches.splice(i, 1);
                     }
                 }
 
-                // Add scheduled slot to final list
                 newSchedule.push(...slotMatches);
-
-                // Move clock forward (Match length + Changeover gap)
-                // Only move clock if we actually scheduled something, otherwise infinite loop safety
                 if (slotMatches.length > 0 || pendingMatches.length > 0) {
                     currentTimeMins += duration + gap;
                 }
             }
 
-            // 4. Save to Database (Append to existing matches from other categories)
             set(ref(db, `lax/${eventID}/matches`), [...matches, ...newSchedule]);
             alert(`Generated ${newSchedule.length} matches for ${cat}.`);
         };
@@ -260,7 +232,6 @@
         function updateCatSelect() {
             const cats = [...new Set(teams.map(t => t.cat))].sort();
             const sel = document.getElementById('catSelect');
-            // Keep selection if possible
             const current = sel.value;
             sel.innerHTML = '';
             cats.forEach(c => {
@@ -272,15 +243,12 @@
         function renderSchedule() {
             const tb = document.getElementById('scheduleBody');
             tb.innerHTML = '';
-            // Sort by time string (HH:MM)
             matches.sort((a,b) => a.time.localeCompare(b.time));
 
             matches.forEach(m => {
                 let statusBadge = `<span class="text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded font-mono">UPCOMING</span>`;
                 if(m.status === 'active') statusBadge = `<span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded animate-pulse font-bold">LIVE</span>`;
                 if(m.status === 'finished') statusBadge = `<span class="text-xs bg-slate-800 text-white px-2 py-1 rounded font-bold">FT</span>`;
-
-                // Highlight if score exists
                 let scoreClass = (m.scoreA > 0 || m.scoreB > 0) ? "text-slate-800" : "text-slate-400";
 
                 tb.innerHTML += `
@@ -300,7 +268,6 @@
         function formatTime(minutes) {
             let h = Math.floor(minutes / 60);
             let m = minutes % 60;
-            // Handle day rollover if needed (optional)
             if (h >= 24) h -= 24;
             return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
         }
