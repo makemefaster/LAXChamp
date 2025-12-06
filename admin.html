@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin | LaxChamp</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Inter', sans-serif; }</style>
+</head>
+<body class="bg-slate-100 min-h-screen p-4">
+
+    <div class="max-w-6xl mx-auto space-y-6">
+        <!-- Header -->
+        <div class="bg-white p-4 rounded-xl shadow-sm flex justify-between items-center">
+            <h1 class="text-xl font-bold text-slate-800">Tournament Admin</h1>
+            <a href="index.html" class="text-sm text-slate-500 hover:text-slate-800">Log Out</a>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- LEFT: SETUP -->
+            <div class="lg:col-span-1 space-y-6">
+                
+                <!-- 1. TEAMS -->
+                <div class="bg-white p-6 rounded-xl shadow-sm">
+                    <h2 class="font-bold text-slate-800 mb-2">1. Teams</h2>
+                    <textarea id="teamInput" class="w-full border rounded p-2 text-sm h-24 mb-2" placeholder="St Swithuns, U19A&#10;Wycombe Abbey, U19A&#10;Putney High, U19A"></textarea>
+                    <button onclick="importTeams()" class="w-full bg-indigo-600 text-white py-2 rounded font-bold text-sm hover:bg-indigo-700">Import Teams</button>
+                    <div id="teamCount" class="text-xs text-slate-500 mt-2 text-center">0 teams loaded</div>
+                </div>
+
+                <!-- 2. PITCHES -->
+                <div class="bg-white p-6 rounded-xl shadow-sm">
+                    <h2 class="font-bold text-slate-800 mb-2">2. Pitches</h2>
+                    <div class="flex gap-2">
+                        <input type="number" id="pitchCount" value="4" class="border rounded p-2 w-20 text-center">
+                        <button onclick="updatePitches()" class="flex-1 bg-slate-800 text-white py-2 rounded font-bold text-sm">Set Pitches</button>
+                    </div>
+                </div>
+
+                <!-- 3. GENERATOR -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-green-500">
+                    <h2 class="font-bold text-slate-800 mb-2">3. Scheduler</h2>
+                    <label class="text-xs font-bold text-slate-500">Category</label>
+                    <select id="catSelect" class="w-full border rounded p-2 mb-3 text-sm"></select>
+                    
+                    <label class="text-xs font-bold text-slate-500">Match Duration (mins)</label>
+                    <input type="number" id="matchDuration" value="15" class="w-full border rounded p-2 mb-3 text-sm">
+
+                    <button onclick="generateSchedule()" class="w-full bg-green-600 text-white py-3 rounded font-bold hover:bg-green-700">Generate Round Robin</button>
+                </div>
+
+                <button onclick="wipeData()" class="w-full text-red-500 text-xs underline">Reset Event Data</button>
+            </div>
+
+            <!-- RIGHT: SCHEDULE -->
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+                    <div class="p-4 border-b bg-slate-50 flex justify-between items-center">
+                        <h2 class="font-bold text-slate-800">Master Schedule</h2>
+                        <span id="matchCount" class="text-xs bg-slate-200 px-2 py-1 rounded">0 Matches</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-slate-50 text-xs uppercase text-slate-500">
+                                <tr>
+                                    <th class="px-4 py-3">Time</th>
+                                    <th class="px-4 py-3">Pitch</th>
+                                    <th class="px-4 py-3">Cat</th>
+                                    <th class="px-4 py-3">Home</th>
+                                    <th class="px-4 py-3">Away</th>
+                                    <th class="px-4 py-3">Score</th>
+                                    <th class="px-4 py-3">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="scheduleBody" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+        import { getDatabase, ref, set, onValue, push } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+
+        // --- FIREBASE CONFIG (Reuse your keys) ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyAkTwI7TbJwXPbVQ2OrKjAAIaWLvyfuudc",
+            authDomain: "sprintfutures.firebaseapp.com",
+            databaseURL: "https://sprintfutures-default-rtdb.firebaseio.com",
+            projectId: "sprintfutures",
+            storageBucket: "sprintfutures.firebasestorage.app",
+            messagingSenderId: "535060943616",
+            appId: "1:535060943616:web:d15fc5225538eaeb3459e5"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const params = new URLSearchParams(window.location.search);
+        const eventID = params.get('event');
+
+        if(!eventID) window.location.href = 'index.html';
+
+        // STATE
+        let teams = [];
+        let matches = [];
+        let pitches = 4;
+
+        // SYNC
+        onValue(ref(db, `lax/${eventID}`), (snap) => {
+            const data = snap.val() || {};
+            teams = data.teams || [];
+            matches = data.matches || [];
+            pitches = data.pitches || 4;
+            
+            document.getElementById('teamCount').innerText = `${teams.length} teams`;
+            document.getElementById('matchCount').innerText = `${matches.length} Matches`;
+            document.getElementById('pitchCount').value = pitches;
+            
+            updateCatSelect();
+            renderSchedule();
+        });
+
+        // ACTIONS
+        window.importTeams = function() {
+            const txt = document.getElementById('teamInput').value;
+            const lines = txt.split('\n');
+            let newTeams = [];
+            lines.forEach(l => {
+                const p = l.split(',');
+                if(p.length >= 2) {
+                    newTeams.push({
+                        id: Date.now() + Math.random(),
+                        name: p[0].trim(),
+                        cat: p[1].trim().toUpperCase()
+                    });
+                }
+            });
+            // Append to existing
+            set(ref(db, `lax/${eventID}/teams`), [...teams, ...newTeams]);
+            document.getElementById('teamInput').value = '';
+        };
+
+        window.updatePitches = function() {
+            const val = parseInt(document.getElementById('pitchCount').value);
+            set(ref(db, `lax/${eventID}/pitches`), val);
+        };
+
+        window.wipeData = function() {
+            if(confirm("Delete ALL tournament data?")) {
+                set(ref(db, `lax/${eventID}`), null);
+            }
+        };
+
+        window.generateSchedule = function() {
+            const cat = document.getElementById('catSelect').value;
+            const duration = parseInt(document.getElementById('matchDuration').value);
+            if(!cat) return alert("Select Category");
+
+            const catTeams = teams.filter(t => t.cat === cat);
+            if(catTeams.length < 2) return alert("Not enough teams in category");
+
+            // Simple Round Robin Logic
+            let newMatches = [];
+            let startTime = 9 * 60; // 09:00 in minutes
+            let currentPitch = 1;
+            
+            // Create pairings
+            for(let i=0; i<catTeams.length; i++) {
+                for(let j=i+1; j<catTeams.length; j++) {
+                    newMatches.push({
+                        id: Date.now() + Math.random(),
+                        cat: cat,
+                        teamA: catTeams[i].name,
+                        teamB: catTeams[j].name,
+                        scoreA: 0,
+                        scoreB: 0,
+                        status: 'scheduled', // scheduled, active, finished
+                        pitch: currentPitch,
+                        time: formatTime(startTime)
+                    });
+
+                    // Rotate Pitch / Time
+                    currentPitch++;
+                    if(currentPitch > pitches) {
+                        currentPitch = 1;
+                        startTime += duration + 5; // Add 5 min break
+                    }
+                }
+            }
+
+            // Append
+            set(ref(db, `lax/${eventID}/matches`), [...matches, ...newMatches]);
+        };
+
+        // HELPERS
+        function updateCatSelect() {
+            const cats = [...new Set(teams.map(t => t.cat))];
+            const sel = document.getElementById('catSelect');
+            sel.innerHTML = '';
+            cats.forEach(c => {
+                sel.innerHTML += `<option value="${c}">${c}</option>`;
+            });
+        }
+
+        function renderSchedule() {
+            const tb = document.getElementById('scheduleBody');
+            tb.innerHTML = '';
+            // Sort by time
+            matches.sort((a,b) => a.time.localeCompare(b.time));
+
+            matches.forEach(m => {
+                let statusBadge = `<span class="text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded">Upcoming</span>`;
+                if(m.status === 'active') statusBadge = `<span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded animate-pulse">Live</span>`;
+                if(m.status === 'finished') statusBadge = `<span class="text-xs bg-slate-800 text-white px-2 py-1 rounded">FT</span>`;
+
+                tb.innerHTML += `
+                <tr class="hover:bg-slate-50">
+                    <td class="px-4 py-3 font-mono">${m.time}</td>
+                    <td class="px-4 py-3 font-bold">P${m.pitch}</td>
+                    <td class="px-4 py-3"><span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded">${m.cat}</span></td>
+                    <td class="px-4 py-3 text-right">${m.teamA}</td>
+                    <td class="px-4 py-3 text-left">${m.teamB}</td>
+                    <td class="px-4 py-3 font-mono font-bold text-center bg-slate-50">${m.scoreA} - ${m.scoreB}</td>
+                    <td class="px-4 py-3">${statusBadge}</td>
+                </tr>`;
+            });
+        }
+
+        function formatTime(minutes) {
+            const h = Math.floor(minutes / 60);
+            const m = minutes % 60;
+            return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
+        }
+
+    </script>
+</body>
+</html>
