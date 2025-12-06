@@ -28,10 +28,11 @@
                 <!-- TABS -->
                 <div class="flex bg-white rounded-lg p-1 border border-slate-200">
                     <button onclick="showTab('setup')" id="btn-setup" class="flex-1 py-2 text-xs font-bold rounded bg-slate-100 text-slate-800">Setup</button>
+                    <button onclick="showTab('knockout')" id="btn-knockout" class="flex-1 py-2 text-xs font-bold rounded text-slate-500 hover:bg-slate-50">Knockouts</button>
                     <button onclick="showTab('standings')" id="btn-standings" class="flex-1 py-2 text-xs font-bold rounded text-slate-500 hover:bg-slate-50">Standings</button>
                 </div>
 
-                <!-- TAB: SETUP -->
+                <!-- TAB: SETUP (Default) -->
                 <div id="tab-setup" class="space-y-6">
                     <!-- Teams -->
                     <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
@@ -43,9 +44,9 @@
                         </div>
                     </div>
 
-                    <!-- Scheduler -->
+                    <!-- Round Robin Scheduler -->
                     <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-green-500">
-                        <h2 class="font-bold text-slate-800 mb-2">Auto Scheduler</h2>
+                        <h2 class="font-bold text-slate-800 mb-2">Group Stages</h2>
                         <div class="space-y-2 mb-3">
                             <select id="catSelect" class="w-full border rounded p-2 text-xs bg-white"></select>
                             <div class="grid grid-cols-2 gap-2">
@@ -70,14 +71,49 @@
                     </div>
                 </div>
 
-                <!-- TAB: STANDINGS (Live view for Admin) -->
+                <!-- TAB: KNOCKOUTS (New Feature) -->
+                <div id="tab-knockout" class="hidden bg-white p-5 rounded-xl shadow-sm border-l-4 border-amber-500 space-y-4">
+                    <div>
+                        <h2 class="font-bold text-slate-800 mb-1">Knockout Generator</h2>
+                        <p class="text-[0.65rem] text-slate-400">Auto-seeds based on current standings.</p>
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-bold text-slate-500">Source Category</label>
+                        <select id="koCatSelect" class="w-full border rounded p-2 text-xs bg-white mb-3" onchange="updateKoPreview()"></select>
+                    </div>
+
+                    <div class="p-3 bg-amber-50 rounded border border-amber-100">
+                        <label class="text-xs font-bold text-amber-700 mb-1 block">Rank Range</label>
+                        <div class="flex items-center gap-2 mb-2">
+                            <input type="number" id="koStart" value="1" min="1" class="w-12 p-1 text-center border rounded text-xs" onchange="updateKoPreview()">
+                            <span class="text-xs text-slate-400">to</span>
+                            <input type="number" id="koEnd" value="4" min="1" class="w-12 p-1 text-center border rounded text-xs" onchange="updateKoPreview()">
+                        </div>
+                        <div id="koPreview" class="text-[0.65rem] text-slate-500 italic mb-2">Select category to see teams...</div>
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-bold text-slate-500">Bracket Name</label>
+                        <input type="text" id="koName" value="Championship SF" class="w-full border rounded p-2 text-xs font-bold uppercase text-slate-700">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-2">
+                        <input type="time" id="koTime" value="14:00" class="border rounded p-2 text-xs">
+                        <input type="number" id="koPitch" placeholder="Pitch" class="border rounded p-2 text-xs">
+                    </div>
+
+                    <button onclick="generateKnockouts()" class="w-full bg-amber-600 text-white py-2 rounded-lg font-bold text-xs hover:bg-amber-700 shadow-sm">Generate Bracket</button>
+                </div>
+
+                <!-- TAB: STANDINGS -->
                 <div id="tab-standings" class="hidden bg-white p-4 rounded-xl shadow-sm border border-slate-200">
                     <h2 class="font-bold text-slate-800 mb-2">Live Standings</h2>
                     <select id="standingsCat" class="w-full border rounded p-2 text-xs mb-3" onchange="renderAdminStandings()"></select>
-                    <div class="overflow-x-auto">
+                    <div class="overflow-x-auto max-h-[500px]">
                         <table class="w-full text-xs text-left">
-                            <thead class="bg-slate-50 uppercase text-slate-500">
-                                <tr><th>Team</th><th class="text-center">P</th><th class="text-center">Pts</th></tr>
+                            <thead class="bg-slate-50 uppercase text-slate-500 sticky top-0">
+                                <tr><th>#</th><th>Team</th><th class="text-center">Pts</th><th class="text-center">GD</th></tr>
                             </thead>
                             <tbody id="adminStandingsBody" class="divide-y divide-slate-100"></tbody>
                         </table>
@@ -90,7 +126,6 @@
             <!-- RIGHT COLUMN: SCHEDULE (8 cols) -->
             <div class="lg:col-span-8">
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[800px]">
-                    
                     <div class="p-4 border-b bg-slate-50 flex justify-between items-center sticky top-0 z-10">
                         <div>
                             <h2 class="font-bold text-slate-800">Master Schedule</h2>
@@ -98,45 +133,25 @@
                         </div>
                         <button onclick="window.print()" class="bg-white border border-slate-300 text-slate-600 px-3 py-1.5 rounded text-xs font-bold hover:bg-slate-50">Print</button>
                     </div>
-
                     <div class="overflow-auto flex-grow bg-slate-50 p-4">
                         <div id="scheduleGrid" class="space-y-2"></div>
                     </div>
-
                 </div>
             </div>
 
         </div>
     </div>
 
-    <!-- EDIT MATCH MODAL -->
+    <!-- EDIT MODAL -->
     <div id="editModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
         <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm">
-            <h3 class="text-lg font-bold mb-4">Edit Match Result</h3>
+            <h3 class="text-lg font-bold mb-4">Edit Match</h3>
             <input type="hidden" id="editIndex">
-            
             <div class="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                    <label class="text-xs font-bold text-slate-500">Home Score</label>
-                    <input type="number" id="editScoreA" class="w-full border-2 border-slate-200 rounded p-2 text-xl font-bold text-center">
-                    <div id="editTeamA" class="text-xs text-center mt-1 font-bold"></div>
-                </div>
-                <div>
-                    <label class="text-xs font-bold text-slate-500">Away Score</label>
-                    <input type="number" id="editScoreB" class="w-full border-2 border-slate-200 rounded p-2 text-xl font-bold text-center">
-                    <div id="editTeamB" class="text-xs text-center mt-1 font-bold"></div>
-                </div>
+                <div><label class="text-xs font-bold text-slate-500">Home Score</label><input type="number" id="editScoreA" class="w-full border-2 border-slate-200 rounded p-2 text-xl font-bold text-center"></div>
+                <div><label class="text-xs font-bold text-slate-500">Away Score</label><input type="number" id="editScoreB" class="w-full border-2 border-slate-200 rounded p-2 text-xl font-bold text-center"></div>
             </div>
-
-            <div class="mb-4">
-                <label class="text-xs font-bold text-slate-500">Status</label>
-                <select id="editStatus" class="w-full border rounded p-2">
-                    <option value="scheduled">Scheduled</option>
-                    <option value="active">Active (Live)</option>
-                    <option value="finished">Finished</option>
-                </select>
-            </div>
-
+            <div class="mb-4"><label class="text-xs font-bold text-slate-500">Status</label><select id="editStatus" class="w-full border rounded p-2"><option value="scheduled">Scheduled</option><option value="active">Active</option><option value="finished">Finished</option></select></div>
             <div class="flex gap-2">
                 <button onclick="saveMatchEdit()" class="flex-1 bg-green-600 text-white py-2 rounded font-bold hover:bg-green-700">Save</button>
                 <button onclick="closeEditModal()" class="flex-1 bg-slate-200 text-slate-600 py-2 rounded font-bold hover:bg-slate-300">Cancel</button>
@@ -163,10 +178,10 @@
             pitches = data.pitches || 4;
             
             document.getElementById('scheduleMeta').innerText = `${matches.length} Matches | ${pitches} Pitches`;
-            
             updateCatSelect();
             renderSchedule();
-            renderAdminStandings(); // Update standings in real-time
+            renderAdminStandings();
+            updateKoPreview(); // Refresh preview if standings change
         });
 
         // 1. IMPORT
@@ -181,7 +196,7 @@
             set(ref(db, `lax/${eventID}/pitches`), parseInt(document.getElementById('pitchCount').value));
         };
 
-        // 2. AUTO SCHEDULER
+        // 2. SCHEDULER
         window.generateSchedule = function() {
             const cat = document.getElementById('catSelect').value;
             const duration = parseInt(document.getElementById('gameDuration').value);
@@ -189,7 +204,6 @@
             const catTeams = teams.filter(t => t.cat === cat);
             
             if(catTeams.length < 2) return alert("Need teams");
-
             let pendingMatches = [];
             for(let i=0; i<catTeams.length; i++) {
                 for(let j=i+1; j<catTeams.length; j++) {
@@ -206,7 +220,6 @@
                 let slot = [];
                 let busy = new Set();
                 let availPitches = pitches;
-                
                 for(let i=pendingMatches.length-1; i>=0; i--) {
                     if(availPitches<=0) break;
                     let m = pendingMatches[i];
@@ -225,7 +238,58 @@
             set(ref(db, `lax/${eventID}/matches`), [...matches, ...newSchedule]);
         };
 
-        // 3. MANUAL MATCH
+        // 3. KNOCKOUT GENERATOR (NEW)
+        window.updateKoPreview = function() {
+            const cat = document.getElementById('koCatSelect').value;
+            const start = parseInt(document.getElementById('koStart').value);
+            const end = parseInt(document.getElementById('koEnd').value);
+            const ranked = getStandings(cat);
+            
+            const subset = ranked.slice(start - 1, end);
+            const pv = document.getElementById('koPreview');
+            
+            if(subset.length === 0) {
+                pv.innerText = "No teams found.";
+                return;
+            }
+            pv.innerHTML = `<strong>Selected (${subset.length}):</strong><br>${subset.map((t,i) => `${start+i}. ${t.name}`).join('<br>')}`;
+        };
+
+        window.generateKnockouts = function() {
+            const cat = document.getElementById('koCatSelect').value;
+            const start = parseInt(document.getElementById('koStart').value);
+            const end = parseInt(document.getElementById('koEnd').value);
+            const title = document.getElementById('koName').value;
+            const time = document.getElementById('koTime').value;
+            let pitch = parseInt(document.getElementById('koPitch').value) || 1;
+            
+            const ranked = getStandings(cat);
+            const subset = ranked.slice(start - 1, end); // Get Top X teams
+            
+            if(subset.length < 2) return alert("Need at least 2 teams.");
+            if(subset.length % 2 !== 0) alert("Warning: Odd number of teams. Bottom seed may be unpaired.");
+
+            let newMatches = [];
+            // Seed: Top vs Bottom, 2nd vs 2nd Bottom
+            // i.e., 1v4, 2v3
+            for(let i=0; i<Math.floor(subset.length/2); i++) {
+                let top = subset[i];
+                let bot = subset[subset.length - 1 - i];
+                newMatches.push({
+                    cat: title, // Use custom title (e.g. "Championship") as category for display
+                    teamA: top.name,
+                    teamB: bot.name,
+                    scoreA: 0, scoreB: 0, status: 'scheduled',
+                    time: time,
+                    pitch: pitch++
+                });
+            }
+
+            set(ref(db, `lax/${eventID}/matches`), [...matches, ...newMatches]);
+            alert("Bracket Generated!");
+        };
+
+        // 4. MANUAL & EDIT
         window.addManualMatch = function() {
             const m = {
                 teamA: document.getElementById('newTeamA').value,
@@ -235,16 +299,12 @@
                 pitch: parseInt(document.getElementById('newPitch').value),
                 scoreA: 0, scoreB: 0, status: 'scheduled'
             };
-            if(!m.teamA || !m.teamB) return alert("Enter Teams");
             set(ref(db, `lax/${eventID}/matches`), [...matches, m]);
         };
 
-        // 4. EDIT LOGIC
         window.openEditModal = function(idx) {
             const m = matches[idx];
             document.getElementById('editIndex').value = idx;
-            document.getElementById('editTeamA').innerText = m.teamA;
-            document.getElementById('editTeamB').innerText = m.teamB;
             document.getElementById('editScoreA').value = m.scoreA;
             document.getElementById('editScoreB').value = m.scoreB;
             document.getElementById('editStatus').value = m.status;
@@ -262,7 +322,7 @@
         };
 
         window.deleteMatch = function() {
-            if(!confirm("Delete this match?")) return;
+            if(!confirm("Delete?")) return;
             const idx = document.getElementById('editIndex').value;
             matches.splice(idx, 1);
             set(ref(db, `lax/${eventID}/matches`), matches);
@@ -271,7 +331,34 @@
 
         window.closeEditModal = () => document.getElementById('editModal').classList.add('hidden');
 
-        // UI HELPERS
+        // HELPERS
+        function getStandings(cat) {
+            let stats = {};
+            matches.filter(m => m.cat === cat && m.status === 'finished').forEach(m => {
+                if(!stats[m.teamA]) stats[m.teamA] = {name:m.teamA, pts:0, gd:0};
+                if(!stats[m.teamB]) stats[m.teamB] = {name:m.teamB, pts:0, gd:0};
+                
+                let gd = m.scoreA - m.scoreB;
+                stats[m.teamA].gd += gd; stats[m.teamB].gd -= gd;
+
+                if(m.scoreA > m.scoreB) stats[m.teamA].pts += 5;
+                else if(m.scoreB > m.scoreA) stats[m.teamB].pts += 5;
+                else { stats[m.teamA].pts += 3; stats[m.teamB].pts += 3; }
+            });
+            // Convert to array and sort
+            return Object.values(stats).sort((a,b) => b.pts - a.pts || b.gd - a.gd);
+        }
+
+        window.renderAdminStandings = function() {
+            const cat = document.getElementById('standingsCat').value;
+            const ranked = getStandings(cat);
+            const tb = document.getElementById('adminStandingsBody');
+            tb.innerHTML = '';
+            ranked.forEach((t, i) => {
+                tb.innerHTML += `<tr class="border-b"><td class="py-1 text-slate-400">${i+1}</td><td>${t.name}</td><td class="text-center font-bold">${t.pts}</td><td class="text-center text-xs text-slate-400">${t.gd}</td></tr>`;
+            });
+        };
+
         function renderSchedule() {
             const grid = document.getElementById('scheduleGrid');
             grid.innerHTML = '';
@@ -284,7 +371,6 @@
                     lastTime = m.time;
                 }
                 
-                // Color code status
                 let border = "border-slate-200";
                 if(m.status === 'active') border = "border-green-500 bg-green-50";
                 if(m.status === 'finished') border = "border-slate-300 bg-slate-100 opacity-75";
@@ -305,36 +391,11 @@
             });
         }
 
-        // STANDINGS LOGIC (Replicated from Live)
-        window.renderAdminStandings = function() {
-            const cat = document.getElementById('standingsCat').value || document.getElementById('catSelect').value;
-            const tb = document.getElementById('adminStandingsBody');
-            tb.innerHTML = '';
-
-            let stats = {};
-            matches.filter(m => m.cat === cat && m.status === 'finished').forEach(m => {
-                if(!stats[m.teamA]) stats[m.teamA] = {p:0, pts:0, gd:0};
-                if(!stats[m.teamB]) stats[m.teamB] = {p:0, pts:0, gd:0};
-                
-                stats[m.teamA].p++; stats[m.teamB].p++;
-                let gd = m.scoreA - m.scoreB;
-                stats[m.teamA].gd += gd; stats[m.teamB].gd -= gd;
-
-                if(m.scoreA > m.scoreB) stats[m.teamA].pts += 5; // Win=5
-                else if(m.scoreB > m.scoreA) stats[m.teamB].pts += 5;
-                else { stats[m.teamA].pts += 3; stats[m.teamB].pts += 3; } // Draw=3
-            });
-
-            Object.keys(stats).sort((a,b) => stats[b].pts - stats[a].pts).forEach(t => {
-                tb.innerHTML += `<tr class="border-b"><td class="py-1">${t}</td><td class="text-center">${stats[t].p}</td><td class="text-center font-bold">${stats[t].pts}</td></tr>`;
-            });
-        };
-
         function updateCatSelect() {
             const cats = [...new Set(teams.map(t => t.cat))].sort();
-            const s1 = document.getElementById('catSelect');
-            const s2 = document.getElementById('standingsCat');
-            [s1, s2].forEach(sel => {
+            const selects = [document.getElementById('catSelect'), document.getElementById('standingsCat'), document.getElementById('koCatSelect')];
+            
+            selects.forEach(sel => {
                 const current = sel.value;
                 sel.innerHTML = '';
                 cats.forEach(c => sel.innerHTML += `<option value="${c}">${c}</option>`);
@@ -344,11 +405,10 @@
 
         function formatTime(m) { let h=Math.floor(m/60), mm=m%60; if(h>=24) h-=24; return `${h.toString().padStart(2,'0')}:${mm.toString().padStart(2,'0')}`; }
         window.showTab = (t) => {
-            document.getElementById('tab-setup').classList.add('hidden');
-            document.getElementById('tab-standings').classList.add('hidden');
-            document.getElementById('btn-setup').className = "flex-1 py-2 text-xs font-bold rounded text-slate-500 hover:bg-slate-50";
-            document.getElementById('btn-standings').className = "flex-1 py-2 text-xs font-bold rounded text-slate-500 hover:bg-slate-50";
-            
+            ['setup','knockout','standings'].forEach(id => {
+                document.getElementById(`tab-${id}`).classList.add('hidden');
+                document.getElementById(`btn-${id}`).className = "flex-1 py-2 text-xs font-bold rounded text-slate-500 hover:bg-slate-50";
+            });
             document.getElementById(`tab-${t}`).classList.remove('hidden');
             document.getElementById(`btn-${t}`).className = "flex-1 py-2 text-xs font-bold rounded bg-slate-100 text-slate-800";
         };
