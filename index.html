@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LaxChamp | Tournament Centre</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Inter', sans-serif; }</style>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col items-center justify-center p-4">
+
+    <div class="mb-8 text-center">
+        <div class="flex items-center justify-center space-x-2 mb-2">
+            <div class="bg-indigo-600 p-3 rounded-xl shadow-lg">
+                <!-- Lacrosse Sticks Icon -->
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </div>
+            <span class="text-3xl font-black text-slate-800 tracking-tight">LaxChamp</span>
+        </div>
+        <p class="text-slate-500 font-medium">Live Tournament Management</p>
+    </div>
+
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-200 overflow-hidden p-8">
+        
+        <!-- ROLE SELECTOR -->
+        <div class="space-y-3">
+            <button onclick="setRole('spectator')" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-xl transition shadow-md flex items-center justify-center gap-3">
+                <span>👀 Watch Live Scores</span>
+            </button>
+            
+            <button onclick="setRole('umpire')" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 rounded-xl transition shadow-md flex items-center justify-center gap-3">
+                <span>⏱️ Umpire Login</span>
+            </button>
+            
+            <button onclick="setRole('admin')" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-4 rounded-xl transition shadow-md flex items-center justify-center gap-3">
+                <span>📋 Tournament Admin</span>
+            </button>
+        </div>
+
+        <!-- LOGIN FORM (Hidden by default) -->
+        <div id="loginForm" class="hidden mt-6 pt-6 border-t border-slate-100">
+            <h3 id="loginTitle" class="text-lg font-bold text-slate-800 mb-2 text-center">Enter Tournament ID</h3>
+            <input type="text" id="eventId" placeholder="e.g. nats25" class="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-lg font-bold text-center uppercase focus:outline-none focus:border-indigo-500 transition-colors mb-3">
+            
+            <div id="pinContainer" class="hidden">
+                <input type="password" id="eventPin" placeholder="PIN" class="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-lg font-bold text-center focus:outline-none focus:border-indigo-500 transition-colors mb-3">
+            </div>
+
+            <button onclick="go()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition">Enter</button>
+            <button onclick="reset()" class="w-full text-slate-400 text-sm mt-3 hover:text-slate-600">Cancel</button>
+        </div>
+
+    </div>
+
+    <script>
+        let currentRole = '';
+
+        function setRole(role) {
+            currentRole = role;
+            document.querySelector('.space-y-3').classList.add('hidden');
+            document.getElementById('loginForm').classList.remove('hidden');
+            
+            const titles = {
+                'spectator': 'Find Tournament',
+                'umpire': 'Umpire Access',
+                'admin': 'Director Login'
+            };
+            document.getElementById('loginTitle').innerText = titles[role];
+
+            // Admin needs PIN
+            if(role === 'admin' || role === 'umpire') {
+                document.getElementById('pinContainer').classList.remove('hidden');
+            } else {
+                document.getElementById('pinContainer').classList.add('hidden');
+            }
+        }
+
+        function reset() {
+            document.querySelector('.space-y-3').classList.remove('hidden');
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('eventId').value = '';
+            document.getElementById('eventPin').value = '';
+        }
+
+        function go() {
+            const id = document.getElementById('eventId').value.trim().toLowerCase();
+            const pin = document.getElementById('eventPin').value.trim();
+            
+            if(!id) return alert("Please enter an Event ID");
+
+            let url = '';
+            let params = `?event=${id}`;
+
+            if (currentRole === 'spectator') {
+                url = 'live.html';
+            } else if (currentRole === 'umpire') {
+                // Simple check (In real app, check DB)
+                if(pin !== '1234') return alert("Incorrect Umpire PIN"); 
+                url = 'umpire.html';
+            } else if (currentRole === 'admin') {
+                 // Simple check (In real app, check DB)
+                 if(pin !== '9999') return alert("Incorrect Admin PIN");
+                 url = 'admin.html';
+                 params += '&auth=admin';
+            }
+
+            window.location.href = url + params;
+        }
+    </script>
+</body>
+</html>
