@@ -6,10 +6,7 @@
     <title>Admin | LaxChamp</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-        .swap-target { border: 2px dashed #f59e0b; background: #fffbeb; }
-    </style>
+    <style>body { font-family: 'Inter', sans-serif; }</style>
 </head>
 <body class="bg-slate-100 min-h-screen p-4">
 
@@ -25,105 +22,85 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
             
-            <!-- LEFT COLUMN: CONFIG (4 cols) -->
+            <!-- LEFT COLUMN: TOOLS (4 cols) -->
             <div class="lg:col-span-4 space-y-6">
                 
-                <!-- 1. SETUP -->
-                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-                    <h2 class="font-bold text-slate-800 mb-3 flex items-center gap-2">
-                        <span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs">1</span> Teams & Pitches
-                    </h2>
-                    
-                    <textarea id="teamInput" class="w-full border rounded-lg p-3 text-sm h-32 mb-3 font-mono" placeholder="St Swithuns, U19A&#10;Wycombe Abbey, U19A&#10;Putney High, U19B"></textarea>
-                    
-                    <div class="flex gap-2 mb-3">
-                        <input type="number" id="pitchCount" value="4" class="border rounded p-2 w-16 text-center text-sm" placeholder="Pitches">
-                        <button onclick="importTeams()" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg font-bold text-sm hover:bg-indigo-700">Import & Save</button>
+                <!-- TABS -->
+                <div class="flex bg-white rounded-lg p-1 border border-slate-200">
+                    <button onclick="showTab('setup')" id="btn-setup" class="flex-1 py-2 text-xs font-bold rounded bg-slate-100 text-slate-800">Setup</button>
+                    <button onclick="showTab('standings')" id="btn-standings" class="flex-1 py-2 text-xs font-bold rounded text-slate-500 hover:bg-slate-50">Standings</button>
+                </div>
+
+                <!-- TAB: SETUP -->
+                <div id="tab-setup" class="space-y-6">
+                    <!-- Teams -->
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                        <h2 class="font-bold text-slate-800 mb-2">Teams & Pitches</h2>
+                        <textarea id="teamInput" class="w-full border rounded-lg p-3 text-xs h-24 mb-3 font-mono" placeholder="St Swithuns, U19A&#10;Wycombe Abbey, U19A"></textarea>
+                        <div class="flex gap-2">
+                            <input type="number" id="pitchCount" value="4" class="border rounded p-2 w-16 text-center text-sm" placeholder="Pitches">
+                            <button onclick="importTeams()" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg font-bold text-xs hover:bg-indigo-700">Import</button>
+                        </div>
                     </div>
-                    
-                    <div class="flex justify-between items-center text-xs text-slate-500 border-t pt-2">
-                        <span id="teamCount">0 Teams</span>
-                        <span id="pitchDisplay">4 Pitches</span>
+
+                    <!-- Scheduler -->
+                    <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-green-500">
+                        <h2 class="font-bold text-slate-800 mb-2">Auto Scheduler</h2>
+                        <div class="space-y-2 mb-3">
+                            <select id="catSelect" class="w-full border rounded p-2 text-xs bg-white"></select>
+                            <div class="grid grid-cols-2 gap-2">
+                                <input type="time" id="startTime" value="09:00" class="border rounded p-2 text-xs">
+                                <input type="number" id="gameDuration" value="15" class="border rounded p-2 text-xs" placeholder="Mins">
+                            </div>
+                        </div>
+                        <button onclick="generateSchedule()" class="w-full bg-green-600 text-white py-2 rounded-lg font-bold text-xs hover:bg-green-700">Generate Round Robin</button>
+                    </div>
+
+                    <!-- Manual Match -->
+                    <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-blue-500">
+                        <h2 class="font-bold text-slate-800 mb-2">Add Single Match</h2>
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <input id="newTeamA" placeholder="Team A" class="border rounded p-2 text-xs">
+                            <input id="newTeamB" placeholder="Team B" class="border rounded p-2 text-xs">
+                            <input id="newTime" type="time" class="border rounded p-2 text-xs">
+                            <input id="newPitch" type="number" placeholder="Pitch" class="border rounded p-2 text-xs">
+                            <input id="newCat" placeholder="Cat/Name" class="col-span-2 border rounded p-2 text-xs">
+                        </div>
+                        <button onclick="addManualMatch()" class="w-full bg-blue-600 text-white py-2 rounded-lg font-bold text-xs hover:bg-blue-700">+ Add Match</button>
                     </div>
                 </div>
 
-                <!-- 2. POOLING -->
-                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-                    <h2 class="font-bold text-slate-800 mb-3 flex items-center gap-2">
-                        <span class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-xs">2</span> Pooling
-                    </h2>
-                    
-                    <div class="mb-3">
-                        <label class="text-xs font-bold text-slate-500 uppercase">Category</label>
-                        <select id="poolCatSelect" class="w-full border rounded p-2 text-sm bg-white"></select>
-                    </div>
-
-                    <div class="flex gap-2 mb-3">
-                        <select id="poolCount" class="w-1/3 border rounded p-2 text-sm">
-                            <option value="1">1 Pool</option>
-                            <option value="2">2 Pools</option>
-                            <option value="3">3 Pools</option>
-                            <option value="4">4 Pools</option>
-                        </select>
-                        <button onclick="assignPools()" class="flex-1 bg-slate-800 text-white py-2 rounded-lg font-bold text-sm hover:bg-slate-900">Shuffle into Pools</button>
-                    </div>
-
-                    <div id="poolPreview" class="text-xs text-slate-500 space-y-1 max-h-32 overflow-y-auto border p-2 rounded bg-slate-50">
-                        No pools generated.
+                <!-- TAB: STANDINGS (Live view for Admin) -->
+                <div id="tab-standings" class="hidden bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                    <h2 class="font-bold text-slate-800 mb-2">Live Standings</h2>
+                    <select id="standingsCat" class="w-full border rounded p-2 text-xs mb-3" onchange="renderAdminStandings()"></select>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left">
+                            <thead class="bg-slate-50 uppercase text-slate-500">
+                                <tr><th>Team</th><th class="text-center">P</th><th class="text-center">Pts</th></tr>
+                            </thead>
+                            <tbody id="adminStandingsBody" class="divide-y divide-slate-100"></tbody>
+                        </table>
                     </div>
                 </div>
 
-                <!-- 3. SCHEDULER -->
-                <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-green-500">
-                    <h2 class="font-bold text-slate-800 mb-3 flex items-center gap-2">
-                        <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">3</span> Auto Scheduler
-                    </h2>
-
-                    <div class="grid grid-cols-2 gap-3 mb-3">
-                        <div>
-                            <label class="text-[0.65rem] font-bold text-slate-400 uppercase">Start Time</label>
-                            <input type="time" id="startTime" value="09:00" class="w-full border rounded p-2 text-sm">
-                        </div>
-                        <div>
-                            <label class="text-[0.65rem] font-bold text-slate-400 uppercase">Game Mins</label>
-                            <input type="number" id="gameDuration" value="15" class="w-full border rounded p-2 text-sm">
-                        </div>
-                        <div>
-                            <label class="text-[0.65rem] font-bold text-slate-400 uppercase">Gap Mins</label>
-                            <input type="number" id="gapDuration" value="5" class="w-full border rounded p-2 text-sm">
-                        </div>
-                        <div>
-                            <label class="text-[0.65rem] font-bold text-slate-400 uppercase">Min Rest</label>
-                            <input type="number" id="minRest" value="1" class="w-full border rounded p-2 text-sm" title="Matches to sit out">
-                        </div>
-                    </div>
-
-                    <button onclick="generateSchedule()" class="w-full bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700 shadow-sm transition">Generate Schedule</button>
-                </div>
-                
-                <button onclick="wipeData()" class="w-full text-center text-xs text-red-400 hover:text-red-600 underline">⚠️ Factory Reset</button>
+                <button onclick="wipeData()" class="w-full text-center text-xs text-red-400 hover:text-red-600 underline mt-4">⚠️ Factory Reset</button>
             </div>
 
             <!-- RIGHT COLUMN: SCHEDULE (8 cols) -->
             <div class="lg:col-span-8">
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[800px]">
                     
-                    <div class="p-4 border-b bg-slate-50 flex justify-between items-center">
+                    <div class="p-4 border-b bg-slate-50 flex justify-between items-center sticky top-0 z-10">
                         <div>
                             <h2 class="font-bold text-slate-800">Master Schedule</h2>
-                            <p class="text-xs text-slate-500" id="scheduleMeta">0 Matches Scheduled</p>
+                            <p class="text-xs text-slate-500" id="scheduleMeta">0 Matches</p>
                         </div>
-                        <div class="flex gap-2">
-                            <button onclick="toggleEdit()" id="editBtn" class="bg-white border border-slate-300 text-slate-600 px-3 py-1.5 rounded text-xs font-bold hover:bg-slate-50">Edit Mode</button>
-                            <button onclick="window.print()" class="bg-slate-800 text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-slate-700">Print</button>
-                        </div>
+                        <button onclick="window.print()" class="bg-white border border-slate-300 text-slate-600 px-3 py-1.5 rounded text-xs font-bold hover:bg-slate-50">Print</button>
                     </div>
 
                     <div class="overflow-auto flex-grow bg-slate-50 p-4">
-                        <div id="scheduleGrid" class="space-y-2">
-                            <!-- JS Renders Here -->
-                            <div class="text-center text-slate-400 py-20">No matches scheduled yet.</div>
-                        </div>
+                        <div id="scheduleGrid" class="space-y-2"></div>
                     </div>
 
                 </div>
@@ -132,16 +109,51 @@
         </div>
     </div>
 
+    <!-- EDIT MATCH MODAL -->
+    <div id="editModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm">
+            <h3 class="text-lg font-bold mb-4">Edit Match Result</h3>
+            <input type="hidden" id="editIndex">
+            
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="text-xs font-bold text-slate-500">Home Score</label>
+                    <input type="number" id="editScoreA" class="w-full border-2 border-slate-200 rounded p-2 text-xl font-bold text-center">
+                    <div id="editTeamA" class="text-xs text-center mt-1 font-bold"></div>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-500">Away Score</label>
+                    <input type="number" id="editScoreB" class="w-full border-2 border-slate-200 rounded p-2 text-xl font-bold text-center">
+                    <div id="editTeamB" class="text-xs text-center mt-1 font-bold"></div>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="text-xs font-bold text-slate-500">Status</label>
+                <select id="editStatus" class="w-full border rounded p-2">
+                    <option value="scheduled">Scheduled</option>
+                    <option value="active">Active (Live)</option>
+                    <option value="finished">Finished</option>
+                </select>
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="saveMatchEdit()" class="flex-1 bg-green-600 text-white py-2 rounded font-bold hover:bg-green-700">Save</button>
+                <button onclick="closeEditModal()" class="flex-1 bg-slate-200 text-slate-600 py-2 rounded font-bold hover:bg-slate-300">Cancel</button>
+                <button onclick="deleteMatch()" class="px-3 bg-red-100 text-red-600 rounded font-bold hover:bg-red-200">🗑</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { db } from './firebase-config.js';
-        import { ref, set, onValue } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+        import { ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 
         const params = new URLSearchParams(window.location.search);
         const eventID = params.get('event');
         if(!eventID) window.location.href = 'index.html';
 
         let teams = [], matches = [], pitches = 4;
-        let editMode = false, swapSource = null;
 
         // SYNC
         onValue(ref(db, `lax/${eventID}`), (snap) => {
@@ -150,273 +162,196 @@
             matches = data.matches || [];
             pitches = data.pitches || 4;
             
-            document.getElementById('teamCount').innerText = `${teams.length} Teams`;
-            document.getElementById('pitchDisplay').innerText = `${pitches} Pitches`;
-            document.getElementById('pitchCount').value = pitches;
             document.getElementById('scheduleMeta').innerText = `${matches.length} Matches | ${pitches} Pitches`;
             
-            updatePoolUI();
+            updateCatSelect();
             renderSchedule();
+            renderAdminStandings(); // Update standings in real-time
         });
 
-        // 1. IMPORT TEAMS
+        // 1. IMPORT
         window.importTeams = function() {
             const txt = document.getElementById('teamInput').value;
             const newTeams = [];
             txt.split('\n').forEach(l => {
                 const p = l.split(',');
-                if(p.length >= 2) newTeams.push({ 
-                    id: crypto.randomUUID(), 
-                    name: p[0].trim(), 
-                    cat: p[1].trim().toUpperCase(),
-                    pool: 'A' // Default pool
-                });
+                if(p.length >= 2) newTeams.push({ name: p[0].trim(), cat: p[1].trim().toUpperCase() });
             });
             set(ref(db, `lax/${eventID}/teams`), [...teams, ...newTeams]);
             set(ref(db, `lax/${eventID}/pitches`), parseInt(document.getElementById('pitchCount').value));
-            document.getElementById('teamInput').value = '';
         };
 
-        // 2. POOLING
-        function updatePoolUI() {
-            const cats = [...new Set(teams.map(t => t.cat))];
-            const sel = document.getElementById('poolCatSelect');
-            if(sel.options.length !== cats.length) {
-                sel.innerHTML = '';
-                cats.forEach(c => sel.innerHTML += `<option value="${c}">${c}</option>`);
-            }
-            
-            // Preview
-            const preview = document.getElementById('poolPreview');
-            preview.innerHTML = '';
-            cats.forEach(c => {
-                const ct = teams.filter(t => t.cat === c);
-                // Group by pool
-                const pools = {};
-                ct.forEach(t => {
-                    if(!pools[t.pool]) pools[t.pool] = [];
-                    pools[t.pool].push(t.name);
-                });
-                
-                let html = `<strong>${c}:</strong> `;
-                for(let p in pools) html += `[${p}: ${pools[p].length}] `;
-                preview.innerHTML += `<div class="mb-1">${html}</div>`;
-            });
-        }
-
-        window.assignPools = function() {
-            const cat = document.getElementById('poolCatSelect').value;
-            const count = parseInt(document.getElementById('poolCount').value);
-            const poolNames = ['A','B','C','D','E','F'];
-            
-            let catTeams = teams.filter(t => t.cat === cat);
-            let otherTeams = teams.filter(t => t.cat !== cat);
-            
-            // Shuffle
-            catTeams.sort(() => Math.random() - 0.5);
-            
-            // Distribute
-            catTeams.forEach((t, i) => {
-                t.pool = poolNames[i % count];
-            });
-
-            set(ref(db, `lax/${eventID}/teams`), [...otherTeams, ...catTeams]);
-        };
-
-        // 3. SCHEDULER (The Brain)
+        // 2. AUTO SCHEDULER
         window.generateSchedule = function() {
+            const cat = document.getElementById('catSelect').value;
             const duration = parseInt(document.getElementById('gameDuration').value);
-            const gap = parseInt(document.getElementById('gapDuration').value);
-            const minRest = parseInt(document.getElementById('minRest').value);
-            const startStr = document.getElementById('startTime').value;
-            const [sh, sm] = startStr.split(':').map(Number);
-            let startTime = sh * 60 + sm;
-
-            // Generate Fixtures for ALL categories based on pools
-            let fixtures = [];
-            const cats = [...new Set(teams.map(t => t.cat))];
+            let startInput = document.getElementById('startTime').value;
+            const catTeams = teams.filter(t => t.cat === cat);
             
-            cats.forEach(cat => {
-                const catTeams = teams.filter(t => t.cat === cat);
-                const pools = [...new Set(catTeams.map(t => t.pool))];
-                
-                pools.forEach(p => {
-                    const poolTeams = catTeams.filter(t => t.pool === p);
-                    // Round Robin Logic
-                    for(let i=0; i<poolTeams.length; i++) {
-                        for(let j=i+1; j<poolTeams.length; j++) {
-                            fixtures.push({
-                                id: crypto.randomUUID(),
-                                cat: cat,
-                                pool: p,
-                                teamA: poolTeams[i].name,
-                                teamB: poolTeams[j].name,
-                                scoreA: 0,
-                                scoreB: 0,
-                                status: 'scheduled'
-                            });
-                        }
-                    }
-                });
-            });
+            if(catTeams.length < 2) return alert("Need teams");
 
-            // Scheduling Algorithm (Greedy with Constraints)
-            let schedule = [];
-            let timePointer = startTime;
-            let pitchPointer = 1;
-            let teamLastPlayed = {}; // Map teamName -> time they finish
-
-            // Optimization: Shuffle fixtures to mix categories
-            fixtures.sort(() => Math.random() - 0.5);
-
-            while(fixtures.length > 0) {
-                let slotMatches = [];
-                let roundTeams = new Set(); // Teams playing in this specific time slot
-                let availablePitches = pitches;
-
-                // Try to fill pitches for this time slot
-                for(let i = fixtures.length - 1; i >= 0; i--) {
-                    if(availablePitches <= 0) break;
-                    
-                    let f = fixtures[i];
-                    
-                    // Constraint 1: Team not already playing this slot
-                    if(roundTeams.has(f.teamA) || roundTeams.has(f.teamB)) continue;
-
-                    // Constraint 2: Rest Period (Check if last game finished too recently)
-                    let finishA = teamLastPlayed[f.teamA] || 0;
-                    let finishB = teamLastPlayed[f.teamB] || 0;
-                    let restTime = (duration + gap) * minRest; // e.g. 20 mins * 1
-                    
-                    if (timePointer < finishA + restTime || timePointer < finishB + restTime) continue;
-
-                    // Success - Schedule it
-                    f.time = formatTime(timePointer);
-                    f.pitch = (pitches - availablePitches) + 1;
-                    
-                    slotMatches.push(f);
-                    roundTeams.add(f.teamA);
-                    roundTeams.add(f.teamB);
-                    
-                    // Update finish times
-                    teamLastPlayed[f.teamA] = timePointer + duration;
-                    teamLastPlayed[f.teamB] = timePointer + duration;
-                    
-                    availablePitches--;
-                    fixtures.splice(i, 1);
+            let pendingMatches = [];
+            for(let i=0; i<catTeams.length; i++) {
+                for(let j=i+1; j<catTeams.length; j++) {
+                    pendingMatches.push({ cat, teamA: catTeams[i].name, teamB: catTeams[j].name, scoreA: 0, scoreB: 0, status: 'scheduled' });
                 }
+            }
+            pendingMatches.sort(() => Math.random() - 0.5);
 
-                if(slotMatches.length === 0) {
-                    // Force time forward if we can't fit anyone (e.g. everyone resting)
-                    timePointer += duration + gap;
-                } else {
-                    schedule.push(...slotMatches);
-                    // Only advance time if we filled pitches or ran out of valid games
-                    if(availablePitches === 0 || fixtures.length > 0) {
-                         timePointer += duration + gap;
+            let [h, m] = startInput.split(':').map(Number);
+            let timeMins = h * 60 + m;
+            let newSchedule = [];
+
+            while(pendingMatches.length > 0) {
+                let slot = [];
+                let busy = new Set();
+                let availPitches = pitches;
+                
+                for(let i=pendingMatches.length-1; i>=0; i--) {
+                    if(availPitches<=0) break;
+                    let m = pendingMatches[i];
+                    if(!busy.has(m.teamA) && !busy.has(m.teamB)) {
+                        m.time = formatTime(timeMins);
+                        m.pitch = (pitches - availPitches) + 1;
+                        slot.push(m);
+                        busy.add(m.teamA); busy.add(m.teamB);
+                        availPitches--;
+                        pendingMatches.splice(i, 1);
                     }
                 }
-                
-                // Safety break
-                if(timePointer > 22*60) break; 
+                newSchedule.push(...slot);
+                if(slot.length > 0) timeMins += duration + 5;
             }
-
-            set(ref(db, `lax/${eventID}/matches`), schedule);
-            alert(`Generated ${schedule.length} matches.`);
+            set(ref(db, `lax/${eventID}/matches`), [...matches, ...newSchedule]);
         };
 
-        // 4. MANUAL EDITS
-        window.toggleEdit = function() {
-            editMode = !editMode;
-            document.getElementById('editBtn').className = editMode ? "bg-blue-600 text-white px-3 py-1.5 rounded text-xs font-bold" : "bg-white border border-slate-300 text-slate-600 px-3 py-1.5 rounded text-xs font-bold";
-            renderSchedule();
+        // 3. MANUAL MATCH
+        window.addManualMatch = function() {
+            const m = {
+                teamA: document.getElementById('newTeamA').value,
+                teamB: document.getElementById('newTeamB').value,
+                cat: document.getElementById('newCat').value,
+                time: document.getElementById('newTime').value,
+                pitch: parseInt(document.getElementById('newPitch').value),
+                scoreA: 0, scoreB: 0, status: 'scheduled'
+            };
+            if(!m.teamA || !m.teamB) return alert("Enter Teams");
+            set(ref(db, `lax/${eventID}/matches`), [...matches, m]);
         };
 
-        window.handleMatchClick = function(idx) {
-            if(!editMode) return;
-
-            if(swapSource === null) {
-                swapSource = idx;
-                renderSchedule(); // Redraw to show highlight
-            } else {
-                // Swap logic
-                const temp = matches[swapSource];
-                matches[swapSource] = matches[idx];
-                matches[idx] = temp;
-                
-                // Swap times/pitches to maintain grid structure? 
-                // Actually, usually we want to swap the TEAMS but keep the Time/Pitch.
-                // Let's swap the whole object for now, but update the Time/Pitch to match the slot.
-                const t1 = matches[swapSource].time;
-                const p1 = matches[swapSource].pitch;
-                
-                matches[swapSource].time = matches[idx].time;
-                matches[swapSource].pitch = matches[idx].pitch;
-                
-                matches[idx].time = t1;
-                matches[idx].pitch = p1;
-
-                set(ref(db, `lax/${eventID}/matches`), matches);
-                swapSource = null;
-            }
+        // 4. EDIT LOGIC
+        window.openEditModal = function(idx) {
+            const m = matches[idx];
+            document.getElementById('editIndex').value = idx;
+            document.getElementById('editTeamA').innerText = m.teamA;
+            document.getElementById('editTeamB').innerText = m.teamB;
+            document.getElementById('editScoreA').value = m.scoreA;
+            document.getElementById('editScoreB').value = m.scoreB;
+            document.getElementById('editStatus').value = m.status;
+            document.getElementById('editModal').classList.remove('hidden');
         };
 
+        window.saveMatchEdit = function() {
+            const idx = document.getElementById('editIndex').value;
+            const updates = {};
+            updates[`lax/${eventID}/matches/${idx}/scoreA`] = parseInt(document.getElementById('editScoreA').value);
+            updates[`lax/${eventID}/matches/${idx}/scoreB`] = parseInt(document.getElementById('editScoreB').value);
+            updates[`lax/${eventID}/matches/${idx}/status`] = document.getElementById('editStatus').value;
+            update(ref(db), updates);
+            closeEditModal();
+        };
+
+        window.deleteMatch = function() {
+            if(!confirm("Delete this match?")) return;
+            const idx = document.getElementById('editIndex').value;
+            matches.splice(idx, 1);
+            set(ref(db, `lax/${eventID}/matches`), matches);
+            closeEditModal();
+        };
+
+        window.closeEditModal = () => document.getElementById('editModal').classList.add('hidden');
+
+        // UI HELPERS
         function renderSchedule() {
             const grid = document.getElementById('scheduleGrid');
             grid.innerHTML = '';
-            
-            // Sort
             matches.sort((a,b) => a.time.localeCompare(b.time) || a.pitch - b.pitch);
 
-            if(matches.length === 0) {
-                grid.innerHTML = '<div class="text-center text-slate-400 py-10">No matches scheduled.</div>';
-                return;
-            }
-
-            // Group by Time for cleaner layout
-            let currentGroup = '';
-            
+            let lastTime = '';
             matches.forEach((m, i) => {
-                let border = "";
-                if(swapSource === i) border = "border-2 border-blue-500 bg-blue-50";
-                
-                let cursor = editMode ? "cursor-pointer hover:border-blue-300" : "";
-                
-                // Header for time change
-                if(m.time !== currentGroup) {
-                    grid.innerHTML += `<div class="mt-4 mb-2 text-xs font-bold text-slate-400 uppercase tracking-widest pl-2 sticky top-0 bg-slate-50 z-10">${m.time}</div>`;
-                    currentGroup = m.time;
+                if(m.time !== lastTime) {
+                    grid.innerHTML += `<div class="mt-4 mb-2 text-xs font-bold text-slate-400 pl-2 bg-slate-50 sticky top-0">${m.time}</div>`;
+                    lastTime = m.time;
                 }
+                
+                // Color code status
+                let border = "border-slate-200";
+                if(m.status === 'active') border = "border-green-500 bg-green-50";
+                if(m.status === 'finished') border = "border-slate-300 bg-slate-100 opacity-75";
 
                 grid.innerHTML += `
-                <div onclick="handleMatchClick(${matches.indexOf(m)})" class="bg-white p-3 rounded-lg border border-slate-200 flex items-center justify-between shadow-sm ${border} ${cursor}">
-                    <div class="flex items-center gap-3 w-32">
-                        <div class="font-mono text-sm font-bold text-slate-700">${m.time}</div>
-                        <div class="text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded font-bold">P${m.pitch}</div>
+                <div onclick="openEditModal(${matches.indexOf(m)})" class="p-3 rounded-lg border ${border} bg-white flex items-center justify-between shadow-sm cursor-pointer hover:shadow-md transition">
+                    <div class="flex items-center gap-2 w-24">
+                        <div class="text-xs bg-slate-200 text-slate-600 px-1.5 rounded font-bold">P${m.pitch}</div>
+                        <div class="text-[0.65rem] font-bold text-indigo-500 uppercase truncate">${m.cat}</div>
                     </div>
-                    
-                    <div class="flex-1 flex justify-center items-center gap-4">
-                        <span class="text-sm font-bold text-right w-1/3 truncate">${m.teamA}</span>
-                        <span class="text-xs text-slate-300 font-bold">VS</span>
-                        <span class="text-sm font-bold text-left w-1/3 truncate">${m.teamB}</span>
+                    <div class="flex-1 flex justify-center items-center gap-2 text-sm">
+                        <span class="font-bold text-right w-1/3 truncate">${m.teamA}</span>
+                        <span class="text-xs text-slate-400">v</span>
+                        <span class="font-bold text-left w-1/3 truncate">${m.teamB}</span>
                     </div>
-
-                    <div class="w-32 flex justify-end items-center gap-2">
-                        <span class="text-[0.65rem] uppercase font-bold text-indigo-400 border border-indigo-100 px-1.5 py-0.5 rounded">${m.cat} ${m.pool}</span>
-                        ${m.status === 'finished' ? `<span class="bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded">${m.scoreA}-${m.scoreB}</span>` : ''}
-                        ${m.status === 'active' ? `<span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded animate-pulse">LIVE</span>` : ''}
-                    </div>
+                    <div class="w-16 text-right font-mono font-bold text-slate-700">${m.scoreA} - ${m.scoreB}</div>
                 </div>`;
             });
         }
 
-        function formatTime(minutes) {
-            let h = Math.floor(minutes / 60);
-            let m = minutes % 60;
-            if(h>=24) h-=24;
-            return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
+        // STANDINGS LOGIC (Replicated from Live)
+        window.renderAdminStandings = function() {
+            const cat = document.getElementById('standingsCat').value || document.getElementById('catSelect').value;
+            const tb = document.getElementById('adminStandingsBody');
+            tb.innerHTML = '';
+
+            let stats = {};
+            matches.filter(m => m.cat === cat && m.status === 'finished').forEach(m => {
+                if(!stats[m.teamA]) stats[m.teamA] = {p:0, pts:0, gd:0};
+                if(!stats[m.teamB]) stats[m.teamB] = {p:0, pts:0, gd:0};
+                
+                stats[m.teamA].p++; stats[m.teamB].p++;
+                let gd = m.scoreA - m.scoreB;
+                stats[m.teamA].gd += gd; stats[m.teamB].gd -= gd;
+
+                if(m.scoreA > m.scoreB) stats[m.teamA].pts += 5; // Win=5
+                else if(m.scoreB > m.scoreA) stats[m.teamB].pts += 5;
+                else { stats[m.teamA].pts += 3; stats[m.teamB].pts += 3; } // Draw=3
+            });
+
+            Object.keys(stats).sort((a,b) => stats[b].pts - stats[a].pts).forEach(t => {
+                tb.innerHTML += `<tr class="border-b"><td class="py-1">${t}</td><td class="text-center">${stats[t].p}</td><td class="text-center font-bold">${stats[t].pts}</td></tr>`;
+            });
+        };
+
+        function updateCatSelect() {
+            const cats = [...new Set(teams.map(t => t.cat))].sort();
+            const s1 = document.getElementById('catSelect');
+            const s2 = document.getElementById('standingsCat');
+            [s1, s2].forEach(sel => {
+                const current = sel.value;
+                sel.innerHTML = '';
+                cats.forEach(c => sel.innerHTML += `<option value="${c}">${c}</option>`);
+                if(cats.includes(current)) sel.value = current;
+            });
         }
-        
+
+        function formatTime(m) { let h=Math.floor(m/60), mm=m%60; if(h>=24) h-=24; return `${h.toString().padStart(2,'0')}:${mm.toString().padStart(2,'0')}`; }
+        window.showTab = (t) => {
+            document.getElementById('tab-setup').classList.add('hidden');
+            document.getElementById('tab-standings').classList.add('hidden');
+            document.getElementById('btn-setup').className = "flex-1 py-2 text-xs font-bold rounded text-slate-500 hover:bg-slate-50";
+            document.getElementById('btn-standings').className = "flex-1 py-2 text-xs font-bold rounded text-slate-500 hover:bg-slate-50";
+            
+            document.getElementById(`tab-${t}`).classList.remove('hidden');
+            document.getElementById(`btn-${t}`).className = "flex-1 py-2 text-xs font-bold rounded bg-slate-100 text-slate-800";
+        };
         window.wipeData = () => { if(confirm("DELETE EVERYTHING?")) set(ref(db, `lax/${eventID}`), null); };
     </script>
 </body>
