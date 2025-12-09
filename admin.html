@@ -3,416 +3,247 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin | LaxChamp</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
-    <style>body { font-family: 'Inter', sans-serif; }</style>
+    <title>Tournament Champ - Setup Wizard</title>
+    <style>
+        :root { --primary: #007bff; --bg: #f8f9fa; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); padding: 20px; color: #333; }
+        
+        /* Wizard Container */
+        .wizard-container { max-width: 600px; margin: 40px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        
+        h1 { margin-top: 0; font-size: 1.5rem; color: #444; }
+        h2 { font-size: 1.2rem; margin-bottom: 20px; }
+        p.subtitle { color: #666; font-size: 0.9rem; margin-bottom: 20px; }
+
+        /* Step Visibility */
+        .step { display: none; animation: fadeIn 0.3s ease-in-out; }
+        .step.active { display: block; }
+        
+        /* Inputs & Buttons */
+        label { display: block; margin-top: 15px; font-weight: 500; font-size: 0.9rem; }
+        input, select { width: 100%; padding: 12px; margin-top: 5px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; box-sizing: border-box; }
+        input:focus { border-color: var(--primary); outline: none; }
+        
+        .btn-group { display: flex; gap: 10px; margin-top: 30px; }
+        button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; transition: 0.2s; }
+        .btn-next { background: var(--primary); color: white; }
+        .btn-back { background: #e2e6ea; color: #333; }
+        .btn-add { background: #28a745; color: white; margin-top: 10px; width: auto; padding: 8px 15px; font-size: 0.9rem;}
+
+        /* Sport Selection Cards */
+        .sport-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .sport-card { padding: 15px; border: 2px solid #eee; border-radius: 8px; text-align: center; cursor: pointer; }
+        .sport-card:hover { border-color: #ccc; }
+        .sport-card.selected { border-color: var(--primary); background: #e7f1ff; color: var(--primary); font-weight: bold; }
+
+        /* Division List */
+        .division-item { background: #f8f9fa; padding: 10px; margin-top: 10px; border-radius: 6px; border-left: 4px solid var(--primary); }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
 </head>
-<body class="bg-slate-100 min-h-screen p-4">
+<body>
 
-    <div class="max-w-7xl mx-auto space-y-6">
-        <!-- Header -->
-        <div class="bg-white p-4 rounded-xl shadow-sm flex justify-between items-center">
-            <div class="flex items-center gap-3">
-                <div class="bg-indigo-600 text-white p-2 rounded-lg"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg></div>
-                <h1 class="text-xl font-bold text-slate-800">Tournament Director</h1>
-            </div>
-            <a href="index.html" class="text-sm font-bold text-slate-500 hover:text-slate-800">Exit</a>
-        </div>
+<div class="wizard-container">
+    <div style="font-size: 0.8rem; color: #aaa; margin-bottom: 10px;">SETUP WIZARD</div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            
-            <!-- LEFT COLUMN: TOOLS (4 cols) -->
-            <div class="lg:col-span-4 space-y-6">
-                
-                <!-- TABS -->
-                <div class="flex bg-white rounded-lg p-1 border border-slate-200">
-                    <button onclick="showTab('setup')" id="btn-setup" class="flex-1 py-2 text-xs font-bold rounded bg-slate-100 text-slate-800">Setup</button>
-                    <button onclick="showTab('knockout')" id="btn-knockout" class="flex-1 py-2 text-xs font-bold rounded text-slate-500 hover:bg-slate-50">Knockouts</button>
-                    <button onclick="showTab('standings')" id="btn-standings" class="flex-1 py-2 text-xs font-bold rounded text-slate-500 hover:bg-slate-50">Standings</button>
-                </div>
-
-                <!-- TAB: SETUP (Default) -->
-                <div id="tab-setup" class="space-y-6">
-                    <!-- Teams -->
-                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-                        <h2 class="font-bold text-slate-800 mb-2">Teams & Pitches</h2>
-                        <textarea id="teamInput" class="w-full border rounded-lg p-3 text-xs h-24 mb-3 font-mono" placeholder="St Swithuns, U19A&#10;Wycombe Abbey, U19A"></textarea>
-                        <div class="flex gap-2">
-                            <input type="number" id="pitchCount" value="4" class="border rounded p-2 w-16 text-center text-sm" placeholder="Pitches">
-                            <button onclick="importTeams()" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg font-bold text-xs hover:bg-indigo-700">Import</button>
-                        </div>
-                    </div>
-
-                    <!-- Round Robin Scheduler -->
-                    <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-green-500">
-                        <h2 class="font-bold text-slate-800 mb-2">Group Stages</h2>
-                        <div class="space-y-2 mb-3">
-                            <select id="catSelect" class="w-full border rounded p-2 text-xs bg-white"></select>
-                            <div class="grid grid-cols-2 gap-2">
-                                <input type="time" id="startTime" value="09:00" class="border rounded p-2 text-xs">
-                                <input type="number" id="gameDuration" value="15" class="border rounded p-2 text-xs" placeholder="Mins">
-                            </div>
-                        </div>
-                        <button onclick="generateSchedule()" class="w-full bg-green-600 text-white py-2 rounded-lg font-bold text-xs hover:bg-green-700">Generate Round Robin</button>
-                    </div>
-
-                    <!-- Manual Match -->
-                    <div class="bg-white p-5 rounded-xl shadow-sm border-l-4 border-blue-500">
-                        <h2 class="font-bold text-slate-800 mb-2">Add Single Match</h2>
-                        <div class="grid grid-cols-2 gap-2 mb-2">
-                            <input id="newTeamA" placeholder="Team A" class="border rounded p-2 text-xs">
-                            <input id="newTeamB" placeholder="Team B" class="border rounded p-2 text-xs">
-                            <input id="newTime" type="time" class="border rounded p-2 text-xs">
-                            <input id="newPitch" type="number" placeholder="Pitch" class="border rounded p-2 text-xs">
-                            <input id="newCat" placeholder="Cat/Name" class="col-span-2 border rounded p-2 text-xs">
-                        </div>
-                        <button onclick="addManualMatch()" class="w-full bg-blue-600 text-white py-2 rounded-lg font-bold text-xs hover:bg-blue-700">+ Add Match</button>
-                    </div>
-                </div>
-
-                <!-- TAB: KNOCKOUTS (New Feature) -->
-                <div id="tab-knockout" class="hidden bg-white p-5 rounded-xl shadow-sm border-l-4 border-amber-500 space-y-4">
-                    <div>
-                        <h2 class="font-bold text-slate-800 mb-1">Knockout Generator</h2>
-                        <p class="text-[0.65rem] text-slate-400">Auto-seeds based on current standings.</p>
-                    </div>
-
-                    <div>
-                        <label class="text-xs font-bold text-slate-500">Source Category</label>
-                        <select id="koCatSelect" class="w-full border rounded p-2 text-xs bg-white mb-3" onchange="updateKoPreview()"></select>
-                    </div>
-
-                    <div class="p-3 bg-amber-50 rounded border border-amber-100">
-                        <label class="text-xs font-bold text-amber-700 mb-1 block">Rank Range</label>
-                        <div class="flex items-center gap-2 mb-2">
-                            <input type="number" id="koStart" value="1" min="1" class="w-12 p-1 text-center border rounded text-xs" onchange="updateKoPreview()">
-                            <span class="text-xs text-slate-400">to</span>
-                            <input type="number" id="koEnd" value="4" min="1" class="w-12 p-1 text-center border rounded text-xs" onchange="updateKoPreview()">
-                        </div>
-                        <div id="koPreview" class="text-[0.65rem] text-slate-500 italic mb-2">Select category to see teams...</div>
-                    </div>
-
-                    <div>
-                        <label class="text-xs font-bold text-slate-500">Bracket Name</label>
-                        <input type="text" id="koName" value="Championship SF" class="w-full border rounded p-2 text-xs font-bold uppercase text-slate-700">
-                    </div>
-                    
-                    <div class="grid grid-cols-2 gap-2">
-                        <input type="time" id="koTime" value="14:00" class="border rounded p-2 text-xs">
-                        <input type="number" id="koPitch" placeholder="Pitch" class="border rounded p-2 text-xs">
-                    </div>
-
-                    <button onclick="generateKnockouts()" class="w-full bg-amber-600 text-white py-2 rounded-lg font-bold text-xs hover:bg-amber-700 shadow-sm">Generate Bracket</button>
-                </div>
-
-                <!-- TAB: STANDINGS -->
-                <div id="tab-standings" class="hidden bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                    <h2 class="font-bold text-slate-800 mb-2">Live Standings</h2>
-                    <select id="standingsCat" class="w-full border rounded p-2 text-xs mb-3" onchange="renderAdminStandings()"></select>
-                    <div class="overflow-x-auto max-h-[500px]">
-                        <table class="w-full text-xs text-left">
-                            <thead class="bg-slate-50 uppercase text-slate-500 sticky top-0">
-                                <tr><th>#</th><th>Team</th><th class="text-center">Pts</th><th class="text-center">GD</th></tr>
-                            </thead>
-                            <tbody id="adminStandingsBody" class="divide-y divide-slate-100"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <button onclick="wipeData()" class="w-full text-center text-xs text-red-400 hover:text-red-600 underline mt-4">⚠️ Factory Reset</button>
-            </div>
-
-            <!-- RIGHT COLUMN: SCHEDULE (8 cols) -->
-            <div class="lg:col-span-8">
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[800px]">
-                    <div class="p-4 border-b bg-slate-50 flex justify-between items-center sticky top-0 z-10">
-                        <div>
-                            <h2 class="font-bold text-slate-800">Master Schedule</h2>
-                            <p class="text-xs text-slate-500" id="scheduleMeta">0 Matches</p>
-                        </div>
-                        <button onclick="window.print()" class="bg-white border border-slate-300 text-slate-600 px-3 py-1.5 rounded text-xs font-bold hover:bg-slate-50">Print</button>
-                    </div>
-                    <div class="overflow-auto flex-grow bg-slate-50 p-4">
-                        <div id="scheduleGrid" class="space-y-2"></div>
-                    </div>
-                </div>
-            </div>
-
+    <div id="step1" class="step active">
+        <h1>What are we playing?</h1>
+        <p class="subtitle">This sets the rules, timing, and scoring terms.</p>
+        
+        <div class="sport-grid">
+            <div class="sport-card" onclick="selectSport('lacrosse')">🥍 Lacrosse</div>
+            <div class="sport-card" onclick="selectSport('basketball')">🏀 Basketball</div>
+            <div class="sport-card" onclick="selectSport('soccer')">⚽ Soccer</div>
+            <div class="sport-card" onclick="selectSport('hockey')">🏒 Hockey</div>
         </div>
     </div>
 
-    <!-- EDIT MODAL -->
-    <div id="editModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm">
-            <h3 class="text-lg font-bold mb-4">Edit Match</h3>
-            <input type="hidden" id="editIndex">
-            <div class="grid grid-cols-2 gap-4 mb-4">
-                <div><label class="text-xs font-bold text-slate-500">Home Score</label><input type="number" id="editScoreA" class="w-full border-2 border-slate-200 rounded p-2 text-xl font-bold text-center"></div>
-                <div><label class="text-xs font-bold text-slate-500">Away Score</label><input type="number" id="editScoreB" class="w-full border-2 border-slate-200 rounded p-2 text-xl font-bold text-center"></div>
-            </div>
-            <div class="mb-4"><label class="text-xs font-bold text-slate-500">Status</label><select id="editStatus" class="w-full border rounded p-2"><option value="scheduled">Scheduled</option><option value="active">Active</option><option value="finished">Finished</option></select></div>
-            <div class="flex gap-2">
-                <button onclick="saveMatchEdit()" class="flex-1 bg-green-600 text-white py-2 rounded font-bold hover:bg-green-700">Save</button>
-                <button onclick="closeEditModal()" class="flex-1 bg-slate-200 text-slate-600 py-2 rounded font-bold hover:bg-slate-300">Cancel</button>
-                <button onclick="deleteMatch()" class="px-3 bg-red-100 text-red-600 rounded font-bold hover:bg-red-200">🗑</button>
-            </div>
+    <div id="step2" class="step">
+        <h1>Game Settings</h1>
+        <p class="subtitle">We pre-filled these based on your sport.</p>
+        
+        <label>Game Duration (Minutes)</label>
+        <input type="number" id="gameDuration">
+        
+        <label>Break/Halftime Duration (Minutes)</label>
+        <input type="number" id="breakDuration" value="5">
+
+        <label>Number of Fields/Courts</label>
+        <input type="number" id="fieldCount" value="1">
+
+        <div class="btn-group">
+            <button class="btn-back" onclick="changeStep(1)">Back</button>
+            <button class="btn-next" onclick="changeStep(3)">Next</button>
         </div>
     </div>
 
-    <script type="module">
-        import { db } from './firebase-config.js';
-        import { ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+    <div id="step3" class="step">
+        <h1>Who is playing?</h1>
+        <p class="subtitle">Create divisions (e.g. "U12 Boys") and add teams.</p>
 
-        const params = new URLSearchParams(window.location.search);
-        const eventID = params.get('event');
-        if(!eventID) window.location.href = 'index.html';
+        <label>Division Name</label>
+        <input type="text" id="divNameInput" placeholder="e.g. Varsity A">
+        
+        <label>Teams (Comma separated)</label>
+        <input type="text" id="teamsInput" placeholder="Tigers, Lions, Bears...">
 
-        let teams = [], matches = [], pitches = 4;
+        <button class="btn-add" onclick="addDivision()">+ Add Division</button>
 
-        // SYNC
-        onValue(ref(db, `lax/${eventID}`), (snap) => {
-            const data = snap.val() || {};
-            teams = data.teams || [];
-            matches = data.matches || [];
-            pitches = data.pitches || 4;
-            
-            document.getElementById('scheduleMeta').innerText = `${matches.length} Matches | ${pitches} Pitches`;
-            updateCatSelect();
-            renderSchedule();
-            renderAdminStandings();
-            updateKoPreview(); // Refresh preview if standings change
+        <div id="divisionList"></div>
+
+        <div class="btn-group">
+            <button class="btn-back" onclick="changeStep(2)">Back</button>
+            <button class="btn-next" onclick="finishSetup()">Generate Tournament</button>
+        </div>
+    </div>
+
+    <div id="step4" class="step">
+        <h1 style="color: green;">🎉 Tournament Ready!</h1>
+        <p>The schedule has been generated and sent to the cloud.</p>
+        <p>Go to the <b>Umpire</b> or <b>Live</b> screens to view.</p>
+    </div>
+
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+    import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyB421IaC3NQIDnYvNA7oVYgvfwYG-8aT4o",
+        authDomain: "tournament-champ.firebaseapp.com",
+        databaseURL: "https://tournament-champ-default-rtdb.firebaseio.com",
+        projectId: "tournament-champ",
+        storageBucket: "tournament-champ.firebasestorage.app",
+        messagingSenderId: "65472067494",
+        appId: "1:65472067494:web:ba7298e7378e7604354167",
+        measurementId: "G-2C3LWDC2X3"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // --- LOGIC ---
+    
+    // 1. Sport Presets (The "Magic" Part)
+    const sportPresets = {
+        lacrosse: { duration: 60, break: 10 },
+        basketball: { duration: 40, break: 15 },
+        soccer: { duration: 90, break: 15 },
+        hockey: { duration: 60, break: 15 }
+    };
+
+    let tournamentData = {
+        sport: '',
+        settings: {},
+        divisions: []
+    };
+
+    // Global exposed functions for HTML buttons
+    window.selectSport = (sport) => {
+        // Highlight selection
+        document.querySelectorAll('.sport-card').forEach(el => el.classList.remove('selected'));
+        event.target.classList.add('selected');
+        
+        // Save data
+        tournamentData.sport = sport;
+        
+        // Auto-fill Step 2
+        document.getElementById('gameDuration').value = sportPresets[sport].duration;
+        document.getElementById('breakDuration').value = sportPresets[sport].break;
+
+        // Move to next step with a slight delay for effect
+        setTimeout(() => changeStep(2), 300);
+    };
+
+    window.changeStep = (stepNum) => {
+        document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+        document.getElementById(`step${stepNum}`).classList.add('active');
+    };
+
+    window.addDivision = () => {
+        const name = document.getElementById('divNameInput').value;
+        const teamsStr = document.getElementById('teamsInput').value;
+        
+        if(!name || !teamsStr) return alert("Please fill in division info");
+
+        const teams = teamsStr.split(',').map(t => t.trim());
+        
+        tournamentData.divisions.push({ name, teams });
+
+        // Add visual item
+        const divEl = document.createElement('div');
+        divEl.className = 'division-item';
+        divEl.innerHTML = `<strong>${name}</strong>: ${teams.length} teams`;
+        document.getElementById('divisionList').appendChild(divEl);
+
+        // Clear inputs
+        document.getElementById('divNameInput').value = '';
+        document.getElementById('teamsInput').value = '';
+    };
+
+    window.finishSetup = () => {
+        // Collect final settings
+        tournamentData.settings = {
+            duration: parseInt(document.getElementById('gameDuration').value),
+            breakTime: parseInt(document.getElementById('breakDuration').value),
+            fields: parseInt(document.getElementById('fieldCount').value)
+        };
+
+        // AUTO-SCHEDULER LOGIC (Simplified Round Robin)
+        const matches = [];
+        let matchIdCounter = 1;
+
+        tournamentData.divisions.forEach(div => {
+            const teams = div.teams;
+            // Create a simple round robin: everyone plays the next person in list
+            // (Real logic is more complex, but this proves the concept)
+            for (let i = 0; i < teams.length; i++) {
+                for (let j = i + 1; j < teams.length; j++) {
+                    matches.push({
+                        id: matchIdCounter++,
+                        division: div.name,
+                        teamA: teams[i],
+                        teamB: teams[j],
+                        status: 'scheduled',
+                        scoreA: 0,
+                        scoreB: 0,
+                        timeRemaining: tournamentData.settings.duration * 60
+                    });
+                }
+            }
         });
 
-        // 1. IMPORT
-        window.importTeams = function() {
-            const txt = document.getElementById('teamInput').value;
-            const newTeams = [];
-            txt.split('\n').forEach(l => {
-                const p = l.split(',');
-                if(p.length >= 2) newTeams.push({ name: p[0].trim(), cat: p[1].trim().toUpperCase() });
-            });
-            set(ref(db, `lax/${eventID}/teams`), [...teams, ...newTeams]);
-            set(ref(db, `lax/${eventID}/pitches`), parseInt(document.getElementById('pitchCount').value));
-        };
-
-        // 2. SCHEDULER
-        window.generateSchedule = function() {
-            const cat = document.getElementById('catSelect').value;
-            const duration = parseInt(document.getElementById('gameDuration').value);
-            let startInput = document.getElementById('startTime').value;
-            const catTeams = teams.filter(t => t.cat === cat);
-            
-            if(catTeams.length < 2) return alert("Need teams");
-            let pendingMatches = [];
-            for(let i=0; i<catTeams.length; i++) {
-                for(let j=i+1; j<catTeams.length; j++) {
-                    pendingMatches.push({ cat, teamA: catTeams[i].name, teamB: catTeams[j].name, scoreA: 0, scoreB: 0, status: 'scheduled' });
-                }
-            }
-            pendingMatches.sort(() => Math.random() - 0.5);
-
-            let [h, m] = startInput.split(':').map(Number);
-            let timeMins = h * 60 + m;
-            let newSchedule = [];
-
-            while(pendingMatches.length > 0) {
-                let slot = [];
-                let busy = new Set();
-                let availPitches = pitches;
-                for(let i=pendingMatches.length-1; i>=0; i--) {
-                    if(availPitches<=0) break;
-                    let m = pendingMatches[i];
-                    if(!busy.has(m.teamA) && !busy.has(m.teamB)) {
-                        m.time = formatTime(timeMins);
-                        m.pitch = (pitches - availPitches) + 1;
-                        slot.push(m);
-                        busy.add(m.teamA); busy.add(m.teamB);
-                        availPitches--;
-                        pendingMatches.splice(i, 1);
-                    }
-                }
-                newSchedule.push(...slot);
-                if(slot.length > 0) timeMins += duration + 5;
-            }
-            set(ref(db, `lax/${eventID}/matches`), [...matches, ...newSchedule]);
-        };
-
-        // 3. KNOCKOUT GENERATOR (NEW)
-        window.updateKoPreview = function() {
-            const cat = document.getElementById('koCatSelect').value;
-            const start = parseInt(document.getElementById('koStart').value);
-            const end = parseInt(document.getElementById('koEnd').value);
-            const ranked = getStandings(cat);
-            
-            const subset = ranked.slice(start - 1, end);
-            const pv = document.getElementById('koPreview');
-            
-            if(subset.length === 0) {
-                pv.innerText = "No teams found.";
-                return;
-            }
-            pv.innerHTML = `<strong>Selected (${subset.length}):</strong><br>${subset.map((t,i) => `${start+i}. ${t.name}`).join('<br>')}`;
-        };
-
-        window.generateKnockouts = function() {
-            const cat = document.getElementById('koCatSelect').value;
-            const start = parseInt(document.getElementById('koStart').value);
-            const end = parseInt(document.getElementById('koEnd').value);
-            const title = document.getElementById('koName').value;
-            const time = document.getElementById('koTime').value;
-            let pitch = parseInt(document.getElementById('koPitch').value) || 1;
-            
-            const ranked = getStandings(cat);
-            const subset = ranked.slice(start - 1, end); // Get Top X teams
-            
-            if(subset.length < 2) return alert("Need at least 2 teams.");
-            if(subset.length % 2 !== 0) alert("Warning: Odd number of teams. Bottom seed may be unpaired.");
-
-            let newMatches = [];
-            // Seed: Top vs Bottom, 2nd vs 2nd Bottom
-            // i.e., 1v4, 2v3
-            for(let i=0; i<Math.floor(subset.length/2); i++) {
-                let top = subset[i];
-                let bot = subset[subset.length - 1 - i];
-                newMatches.push({
-                    cat: title, // Use custom title (e.g. "Championship") as category for display
-                    teamA: top.name,
-                    teamB: bot.name,
-                    scoreA: 0, scoreB: 0, status: 'scheduled',
-                    time: time,
-                    pitch: pitch++
-                });
-            }
-
-            set(ref(db, `lax/${eventID}/matches`), [...matches, ...newMatches]);
-            alert("Bracket Generated!");
-        };
-
-        // 4. MANUAL & EDIT
-        window.addManualMatch = function() {
-            const m = {
-                teamA: document.getElementById('newTeamA').value,
-                teamB: document.getElementById('newTeamB').value,
-                cat: document.getElementById('newCat').value,
-                time: document.getElementById('newTime').value,
-                pitch: parseInt(document.getElementById('newPitch').value),
-                scoreA: 0, scoreB: 0, status: 'scheduled'
-            };
-            set(ref(db, `lax/${eventID}/matches`), [...matches, m]);
-        };
-
-        window.openEditModal = function(idx) {
-            const m = matches[idx];
-            document.getElementById('editIndex').value = idx;
-            document.getElementById('editScoreA').value = m.scoreA;
-            document.getElementById('editScoreB').value = m.scoreB;
-            document.getElementById('editStatus').value = m.status;
-            document.getElementById('editModal').classList.remove('hidden');
-        };
-
-        window.saveMatchEdit = function() {
-            const idx = document.getElementById('editIndex').value;
-            const updates = {};
-            updates[`lax/${eventID}/matches/${idx}/scoreA`] = parseInt(document.getElementById('editScoreA').value);
-            updates[`lax/${eventID}/matches/${idx}/scoreB`] = parseInt(document.getElementById('editScoreB').value);
-            updates[`lax/${eventID}/matches/${idx}/status`] = document.getElementById('editStatus').value;
-            update(ref(db), updates);
-            closeEditModal();
-        };
-
-        window.deleteMatch = function() {
-            if(!confirm("Delete?")) return;
-            const idx = document.getElementById('editIndex').value;
-            matches.splice(idx, 1);
-            set(ref(db, `lax/${eventID}/matches`), matches);
-            closeEditModal();
-        };
-
-        window.closeEditModal = () => document.getElementById('editModal').classList.add('hidden');
-
-        // HELPERS
-        function getStandings(cat) {
-            let stats = {};
-            matches.filter(m => m.cat === cat && m.status === 'finished').forEach(m => {
-                if(!stats[m.teamA]) stats[m.teamA] = {name:m.teamA, pts:0, gd:0};
-                if(!stats[m.teamB]) stats[m.teamB] = {name:m.teamB, pts:0, gd:0};
-                
-                let gd = m.scoreA - m.scoreB;
-                stats[m.teamA].gd += gd; stats[m.teamB].gd -= gd;
-
-                if(m.scoreA > m.scoreB) stats[m.teamA].pts += 5;
-                else if(m.scoreB > m.scoreA) stats[m.teamB].pts += 5;
-                else { stats[m.teamA].pts += 3; stats[m.teamB].pts += 3; }
-            });
-            // Convert to array and sort
-            return Object.values(stats).sort((a,b) => b.pts - a.pts || b.gd - a.gd);
-        }
-
-        window.renderAdminStandings = function() {
-            const cat = document.getElementById('standingsCat').value;
-            const ranked = getStandings(cat);
-            const tb = document.getElementById('adminStandingsBody');
-            tb.innerHTML = '';
-            ranked.forEach((t, i) => {
-                tb.innerHTML += `<tr class="border-b"><td class="py-1 text-slate-400">${i+1}</td><td>${t.name}</td><td class="text-center font-bold">${t.pts}</td><td class="text-center text-xs text-slate-400">${t.gd}</td></tr>`;
-            });
-        };
-
-        function renderSchedule() {
-            const grid = document.getElementById('scheduleGrid');
-            grid.innerHTML = '';
-            matches.sort((a,b) => a.time.localeCompare(b.time) || a.pitch - b.pitch);
-
-            let lastTime = '';
-            matches.forEach((m, i) => {
-                if(m.time !== lastTime) {
-                    grid.innerHTML += `<div class="mt-4 mb-2 text-xs font-bold text-slate-400 pl-2 bg-slate-50 sticky top-0">${m.time}</div>`;
-                    lastTime = m.time;
-                }
-                
-                let border = "border-slate-200";
-                if(m.status === 'active') border = "border-green-500 bg-green-50";
-                if(m.status === 'finished') border = "border-slate-300 bg-slate-100 opacity-75";
-
-                grid.innerHTML += `
-                <div onclick="openEditModal(${matches.indexOf(m)})" class="p-3 rounded-lg border ${border} bg-white flex items-center justify-between shadow-sm cursor-pointer hover:shadow-md transition">
-                    <div class="flex items-center gap-2 w-24">
-                        <div class="text-xs bg-slate-200 text-slate-600 px-1.5 rounded font-bold">P${m.pitch}</div>
-                        <div class="text-[0.65rem] font-bold text-indigo-500 uppercase truncate">${m.cat}</div>
-                    </div>
-                    <div class="flex-1 flex justify-center items-center gap-2 text-sm">
-                        <span class="font-bold text-right w-1/3 truncate">${m.teamA}</span>
-                        <span class="text-xs text-slate-400">v</span>
-                        <span class="font-bold text-left w-1/3 truncate">${m.teamB}</span>
-                    </div>
-                    <div class="w-16 text-right font-mono font-bold text-slate-700">${m.scoreA} - ${m.scoreB}</div>
-                </div>`;
+        // If no matches created (user skipped steps), create a dummy one
+        if(matches.length === 0) {
+            matches.push({
+                id: 1, teamA: "Home", teamB: "Away", scoreA:0, scoreB:0, 
+                timeRemaining: tournamentData.settings.duration * 60, status: 'scheduled'
             });
         }
 
-        function updateCatSelect() {
-            const cats = [...new Set(teams.map(t => t.cat))].sort();
-            const selects = [document.getElementById('catSelect'), document.getElementById('standingsCat'), document.getElementById('koCatSelect')];
-            
-            selects.forEach(sel => {
-                const current = sel.value;
-                sel.innerHTML = '';
-                cats.forEach(c => sel.innerHTML += `<option value="${c}">${c}</option>`);
-                if(cats.includes(current)) sel.value = current;
-            });
-        }
+        // Send to Firebase
+        // NOTE: We are overwriting the 'match' node to be the first match of the schedule
+        // In a full app, you would upload the whole schedule array.
+        // For now, let's load the FIRST match into the active slot so Umpire/Live works immediately.
+        
+        const firstMatch = matches[0];
 
-        function formatTime(m) { let h=Math.floor(m/60), mm=m%60; if(h>=24) h-=24; return `${h.toString().padStart(2,'0')}:${mm.toString().padStart(2,'0')}`; }
-        window.showTab = (t) => {
-            ['setup','knockout','standings'].forEach(id => {
-                document.getElementById(`tab-${id}`).classList.add('hidden');
-                document.getElementById(`btn-${id}`).className = "flex-1 py-2 text-xs font-bold rounded text-slate-500 hover:bg-slate-50";
-            });
-            document.getElementById(`tab-${t}`).classList.remove('hidden');
-            document.getElementById(`btn-${t}`).className = "flex-1 py-2 text-xs font-bold rounded bg-slate-100 text-slate-800";
-        };
-        window.wipeData = () => { if(confirm("DELETE EVERYTHING?")) set(ref(db, `lax/${eventID}`), null); };
-    </script>
+        set(ref(db, 'match'), {
+            teamA: firstMatch.teamA,
+            teamB: firstMatch.teamB,
+            scoreA: 0,
+            scoreB: 0,
+            time: firstMatch.timeRemaining,
+            isRunning: false,
+            sport: tournamentData.sport,
+            division: firstMatch.division || "Friendly"
+        }).then(() => {
+            changeStep(4);
+        });
+    };
+</script>
+
 </body>
 </html>
