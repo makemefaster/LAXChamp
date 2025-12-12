@@ -1,11 +1,7 @@
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+import { getDatabase } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// PASTE YOUR NEW LAXCHAMP KEYS HERE
 const firebaseConfig = {
   apiKey: "AIzaSyB421IaC3NQIDnYvNA7oVYgvfwYG-8aT4o",
   authDomain: "tournament-champ.firebaseapp.com",
@@ -17,6 +13,7 @@ const firebaseConfig = {
   measurementId: "G-2C3LWDC2X3"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+const db = getDatabase(app);
+
+export { db };
