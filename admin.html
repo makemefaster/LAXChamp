@@ -63,8 +63,8 @@
     <div style="font-size: 0.8rem; color: #aaa; margin-bottom: 10px;">ADMIN PANEL</div>
     
     <div class="nav-tabs">
-        <div class="nav-tab active" onclick="switchTab('wizard')">Tournament Setup</div>
-        <div class="nav-tab" onclick="switchTab('logins')">Login History</div>
+        <div class="nav-tab active" data-tab="wizard" onclick="switchTab('wizard')">Tournament Setup</div>
+        <div class="nav-tab" data-tab="logins" onclick="switchTab('logins')">Login History</div>
     </div>
 
     <div id="wizardSection">
@@ -174,12 +174,12 @@
 
     // Global exposed functions for HTML buttons
     window.switchTab = function(tab) {
-        // Update tab styling - find the clicked element by matching the tab parameter
+        // Update tab styling using data attributes
         document.querySelectorAll('.nav-tab').forEach(el => {
-            el.classList.remove('active');
-            const tabName = el.textContent.includes('Tournament Setup') ? 'wizard' : 'logins';
-            if (tabName === tab) {
+            if (el.getAttribute('data-tab') === tab) {
                 el.classList.add('active');
+            } else {
+                el.classList.remove('active');
             }
         });
         
