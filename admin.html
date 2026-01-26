@@ -55,7 +55,11 @@
             <div class="sport-card" onclick="selectSport('lacrosse')">🥍 Lacrosse</div>
             <div class="sport-card" onclick="selectSport('basketball')">🏀 Basketball</div>
             <div class="sport-card" onclick="selectSport('soccer')">⚽ Soccer</div>
+            <div class="sport-card" onclick="selectSport('rugby')">🏉 Rugby</div>
             <div class="sport-card" onclick="selectSport('hockey')">🏒 Hockey</div>
+            <div class="sport-card" onclick="selectSport('volleyball')">🏐 Volleyball</div>
+            <div class="sport-card" onclick="selectSport('netball')">🏐 Netball</div>
+            <div class="sport-card" onclick="selectSport('baseball')">⚾ Baseball</div>
         </div>
     </div>
 
@@ -94,21 +98,21 @@
 
         <div class="btn-group">
             <button class="btn-back" onclick="changeStep(2)">Back</button>
-            <button class="btn-next" onclick="finishSetup()">Generate Tournament</button>
+            <button class="btn-next" onclick="finishSetup()">Generate Schedule</button>
         </div>
     </div>
 
     <div id="step4" class="step">
-        <h1 style="color: green;">🎉 Tournament Ready!</h1>
-        <p>The schedule has been generated and sent to the cloud.</p>
-        <p>Go to the <b>Umpire</b> or <b>Live</b> screens to view.</p>
+        <h1 style="color: green;">🎉 Schedule Ready!</h1>
+        <p>The schedule has been generated.</p>
+        <p>Redirecting to Dashboard...</p>
     </div>
 
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-    import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+    import { getDatabase, ref, set, push } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyB421IaC3NQIDnYvNA7oVYgvfwYG-8aT4o",
@@ -126,12 +130,17 @@
 
     // --- LOGIC ---
     
-    // 1. Sport Presets (The "Magic" Part)
+    // 1. Sport Presets (Expanded List)
     const sportPresets = {
-        lacrosse: { duration: 60, break: 10 },
-        basketball: { duration: 40, break: 15 },
-        soccer: { duration: 90, break: 15 },
-        hockey: { duration: 60, break: 15 }
+        lacrosse: { duration: 60, break: 10, periods: 4 },
+        basketball: { duration: 40, break: 15, periods: 4 },
+        soccer: { duration: 90, break: 15, periods: 2 },
+        rugby: { duration: 14, break: 2, periods: 2 },
+        hockey: { duration: 60, break: 15, periods: 3 },
+        volleyball: { duration: 60, break: 10, periods: 3 },
+        netball: { duration: 60, break: 5, periods: 4 },
+        ultimate: { duration: 50, break: 10, periods: 2 },
+        baseball: { duration: 120, break: 20, periods: 1 }
     };
 
     let tournamentData = {
@@ -140,20 +149,16 @@
         divisions: []
     };
 
-    // Global exposed functions for HTML buttons
     window.selectSport = (sport) => {
-        // Highlight selection
         document.querySelectorAll('.sport-card').forEach(el => el.classList.remove('selected'));
         event.target.classList.add('selected');
         
-        // Save data
         tournamentData.sport = sport;
         
-        // Auto-fill Step 2
-        document.getElementById('gameDuration').value = sportPresets[sport].duration;
-        document.getElementById('breakDuration').value = sportPresets[sport].break;
+        const s = sportPresets[sport] || { duration: 30, break: 5 };
+        document.getElementById('gameDuration').value = s.duration;
+        document.getElementById('breakDuration').value = s.break;
 
-        // Move to next step with a slight delay for effect
         setTimeout(() => changeStep(2), 300);
     };
 
@@ -172,36 +177,32 @@
         
         tournamentData.divisions.push({ name, teams });
 
-        // Add visual item
         const divEl = document.createElement('div');
         divEl.className = 'division-item';
         divEl.innerHTML = `<strong>${name}</strong>: ${teams.length} teams`;
         document.getElementById('divisionList').appendChild(divEl);
 
-        // Clear inputs
         document.getElementById('divNameInput').value = '';
         document.getElementById('teamsInput').value = '';
     };
 
     window.finishSetup = () => {
-        // Collect final settings
         tournamentData.settings = {
             duration: parseInt(document.getElementById('gameDuration').value),
             breakTime: parseInt(document.getElementById('breakDuration').value),
             fields: parseInt(document.getElementById('fieldCount').value)
         };
 
-        // AUTO-SCHEDULER LOGIC (Simplified Round Robin)
+        const scheduleRef = ref(db, 'schedule');
         const matches = [];
         let matchIdCounter = 1;
 
+        // GENERATE SCHEDULE (Round Robin Logic)
         tournamentData.divisions.forEach(div => {
             const teams = div.teams;
-            // Create a simple round robin: everyone plays the next person in list
-            // (Real logic is more complex, but this proves the concept)
             for (let i = 0; i < teams.length; i++) {
                 for (let j = i + 1; j < teams.length; j++) {
-                    matches.push({
+                    const newMatch = {
                         id: matchIdCounter++,
                         division: div.name,
                         teamA: teams[i],
@@ -209,39 +210,21 @@
                         status: 'scheduled',
                         scoreA: 0,
                         scoreB: 0,
-                        timeRemaining: tournamentData.settings.duration * 60
-                    });
+                        timeRemaining: tournamentData.settings.duration * 60,
+                        sport: tournamentData.sport,
+                        field: (matchIdCounter % tournamentData.settings.fields) + 1,
+                        timeSlot: "10:00" // Placeholder time
+                    };
+                    
+                    push(scheduleRef, newMatch);
                 }
             }
         });
 
-        // If no matches created (user skipped steps), create a dummy one
-        if(matches.length === 0) {
-            matches.push({
-                id: 1, teamA: "Home", teamB: "Away", scoreA:0, scoreB:0, 
-                timeRemaining: tournamentData.settings.duration * 60, status: 'scheduled'
-            });
-        }
-
-        // Send to Firebase
-        // NOTE: We are overwriting the 'match' node to be the first match of the schedule
-        // In a full app, you would upload the whole schedule array.
-        // For now, let's load the FIRST match into the active slot so Umpire/Live works immediately.
+        changeStep(4);
         
-        const firstMatch = matches[0];
-
-        set(ref(db, 'match'), {
-            teamA: firstMatch.teamA,
-            teamB: firstMatch.teamB,
-            scoreA: 0,
-            scoreB: 0,
-            time: firstMatch.timeRemaining,
-            isRunning: false,
-            sport: tournamentData.sport,
-            division: firstMatch.division || "Friendly"
-        }).then(() => {
-            changeStep(4);
-        });
+        // Optional: Redirect to a dashboard if you have one
+        // setTimeout(() => window.location.href = 'admin-dashboard.html', 1500);
     };
 </script>
 
