@@ -1,13 +1,13 @@
-const CACHE_NAME = "laxchamp-v7"; // BUMPED VERSION
+const CACHE_NAME = "laxchamp-v8"; // Version Bumped
 const ASSETS = [
     "./", 
     "./index.html", 
     "./admin.html", 
     "./umpire.html", 
     "./live.html", 
-    "./staff.html", 
-    "./superuser.html",
-    "./firebase-config.js", // This needs to be re-cached
+    "./schedule.html", // NEW
+    "./map.html",      // NEW
+    "./firebase-config.js",
     "https://cdn.tailwindcss.com",
     "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap"
 ];
