@@ -39,13 +39,35 @@
         /* Division List */
         .division-item { background: #f8f9fa; padding: 10px; margin-top: 10px; border-radius: 6px; border-left: 4px solid var(--primary); }
         
+        /* Navigation Tabs */
+        .nav-tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #ddd; }
+        .nav-tab { padding: 10px 20px; cursor: pointer; border-bottom: 3px solid transparent; transition: 0.2s; font-weight: 500; }
+        .nav-tab:hover { background: #f0f0f0; }
+        .nav-tab.active { border-bottom-color: var(--primary); color: var(--primary); }
+        
+        /* Login History */
+        .login-item { background: #f8f9fa; padding: 12px; margin-top: 10px; border-radius: 6px; border-left: 4px solid #28a745; display: flex; justify-content: space-between; align-items: center; }
+        .login-role { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; text-transform: uppercase; }
+        .role-admin { background: #333; color: white; }
+        .role-umpire { background: #ff9800; color: white; }
+        .role-spectator { background: #28a745; color: white; }
+        .login-time { color: #666; font-size: 0.85rem; }
+        .login-event { color: #333; font-weight: 600; }
+        
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
 
 <div class="wizard-container">
-    <div style="font-size: 0.8rem; color: #aaa; margin-bottom: 10px;">SETUP WIZARD</div>
+    <div style="font-size: 0.8rem; color: #aaa; margin-bottom: 10px;">ADMIN PANEL</div>
+    
+    <div class="nav-tabs">
+        <div class="nav-tab active" data-tab="wizard" onclick="switchTab('wizard')">Tournament Setup</div>
+        <div class="nav-tab" data-tab="logins" onclick="switchTab('logins')">Login History</div>
+    </div>
+
+    <div id="wizardSection">
 
     <div id="step1" class="step active">
         <h1>What are we playing?</h1>
@@ -103,12 +125,22 @@
         <p>The schedule has been generated and sent to the cloud.</p>
         <p>Go to the <b>Umpire</b> or <b>Live</b> screens to view.</p>
     </div>
+    </div>
+
+    <div id="loginsSection" style="display: none;">
+        <h1>Login History</h1>
+        <p class="subtitle">View all login attempts and sessions.</p>
+        
+        <div id="loginsList">
+            <p style="text-align: center; color: #999;">Loading login history...</p>
+        </div>
+    </div>
 
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-    import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyB421IaC3NQIDnYvNA7oVYgvfwYG-8aT4o",
@@ -141,6 +173,66 @@
     };
 
     // Global exposed functions for HTML buttons
+    window.switchTab = function(tab) {
+        // Update tab styling using data attributes
+        document.querySelectorAll('.nav-tab').forEach(el => {
+            if (el.getAttribute('data-tab') === tab) {
+                el.classList.add('active');
+            } else {
+                el.classList.remove('active');
+            }
+        });
+        
+        // Show/hide sections
+        if (tab === 'wizard') {
+            document.getElementById('wizardSection').style.display = 'block';
+            document.getElementById('loginsSection').style.display = 'none';
+        } else if (tab === 'logins') {
+            document.getElementById('wizardSection').style.display = 'none';
+            document.getElementById('loginsSection').style.display = 'block';
+            window.loadLoginHistory();
+        }
+    };
+
+    window.loadLoginHistory = function() {
+        const loginsRef = ref(db, 'logins');
+        onValue(loginsRef, (snapshot) => {
+            const logins = snapshot.val();
+            const loginsList = document.getElementById('loginsList');
+            
+            if (!logins) {
+                loginsList.innerHTML = '<p style="text-align: center; color: #999;">No logins recorded yet.</p>';
+                return;
+            }
+            
+            // Convert to array and sort by timestamp (newest first)
+            const loginsArray = Object.entries(logins).map(([key, value]) => ({
+                id: key,
+                ...value
+            }));
+            loginsArray.sort((a, b) => b.timestamp - a.timestamp);
+            
+            // Generate HTML
+            let html = '';
+            loginsArray.forEach(login => {
+                const date = new Date(login.timestamp);
+                const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+                
+                html += `
+                    <div class="login-item">
+                        <div>
+                            <span class="login-role role-${login.role}">${login.role}</span>
+                            <span class="login-event">${login.eventId}</span>
+                        </div>
+                        <div class="login-time">${formattedDate}</div>
+                    </div>
+                `;
+            });
+            
+            loginsList.innerHTML = html;
+        });
+    };
+
     window.selectSport = (sport) => {
         // Highlight selection
         document.querySelectorAll('.sport-card').forEach(el => el.classList.remove('selected'));
