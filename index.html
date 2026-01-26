@@ -113,8 +113,7 @@
             set(newLoginRef, {
                 role: window.currentRole,
                 eventId: id,
-                timestamp: Date.now(),
-                date: new Date().toISOString()
+                timestamp: Date.now()
             }).then(() => {
                 window.location.href = url + params;
             }).catch((error) => {

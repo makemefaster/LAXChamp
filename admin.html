@@ -68,7 +68,6 @@
     </div>
 
     <div id="wizardSection">
-    <div style="font-size: 0.8rem; color: #aaa; margin-bottom: 10px;">SETUP WIZARD</div>
 
     <div id="step1" class="step active">
         <h1>What are we playing?</h1>
@@ -174,7 +173,7 @@
     };
 
     // Global exposed functions for HTML buttons
-    window.switchTab = (tab) => {
+    window.switchTab = function(tab) {
         // Update tab styling
         document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
         event.target.classList.add('active');
@@ -186,11 +185,11 @@
         } else if (tab === 'logins') {
             document.getElementById('wizardSection').style.display = 'none';
             document.getElementById('loginsSection').style.display = 'block';
-            loadLoginHistory();
+            window.loadLoginHistory();
         }
     };
 
-    function loadLoginHistory() {
+    window.loadLoginHistory = function() {
         const loginsRef = ref(db, 'logins');
         onValue(loginsRef, (snapshot) => {
             const logins = snapshot.val();
@@ -227,7 +226,7 @@
             
             loginsList.innerHTML = html;
         });
-    }
+    };
 
     window.selectSport = (sport) => {
         // Highlight selection
