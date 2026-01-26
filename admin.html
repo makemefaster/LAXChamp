@@ -174,9 +174,14 @@
 
     // Global exposed functions for HTML buttons
     window.switchTab = function(tab) {
-        // Update tab styling
-        document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
-        event.target.classList.add('active');
+        // Update tab styling - find the clicked element by matching the tab parameter
+        document.querySelectorAll('.nav-tab').forEach(el => {
+            el.classList.remove('active');
+            const tabName = el.textContent.includes('Tournament Setup') ? 'wizard' : 'logins';
+            if (tabName === tab) {
+                el.classList.add('active');
+            }
+        });
         
         // Show/hide sections
         if (tab === 'wizard') {
