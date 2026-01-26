@@ -58,6 +58,7 @@
     <script type="module">
         // Just importing to wake up the app, logic handles the rest
         import { db } from './firebase-config.js';
+        import { ref, push, set } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
         
         window.setRole = function(role) {
             window.currentRole = role;
@@ -106,7 +107,20 @@
                  params += '&auth=admin';
             }
 
-            window.location.href = url + params;
+            // Track successful login
+            const loginRef = ref(db, 'logins');
+            const newLoginRef = push(loginRef);
+            set(newLoginRef, {
+                role: window.currentRole,
+                eventId: id,
+                timestamp: Date.now(),
+                date: new Date().toISOString()
+            }).then(() => {
+                window.location.href = url + params;
+            }).catch((error) => {
+                console.error("Error tracking login:", error);
+                window.location.href = url + params; // Still navigate even if tracking fails
+            });
         };
     </script>
 </body>
