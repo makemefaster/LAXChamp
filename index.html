@@ -3,111 +3,136 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LaxChamp | Tournament Centre</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
-    <style>body { font-family: 'Inter', sans-serif; }</style>
-</head>
-<body class="bg-slate-50 min-h-screen flex flex-col items-center justify-center p-4">
+    <title>Tournament Champ - Live</title>
+    <style>
+        body { margin: 0; background: #1a1a1a; color: white; font-family: -apple-system, sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        
+        /* HEADER */
+        .header { 
+            display: flex; justify-content: space-between; align-items: center; 
+            padding: 15px 30px; background: #222; border-bottom: 3px solid #333; 
+        }
+        .header-title { font-weight: bold; letter-spacing: 1px; color: #888; text-transform: uppercase;}
+        .division-badge { background: #007bff; padding: 5px 15px; border-radius: 20px; font-size: 0.9rem; font-weight: bold; }
 
-    <div class="mb-8 text-center">
-        <div class="flex items-center justify-center space-x-2 mb-2">
-            <div class="bg-indigo-600 p-3 rounded-xl shadow-lg">
-                <!-- Lacrosse Sticks Icon -->
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-            </div>
-            <span class="text-3xl font-black text-slate-800 tracking-tight">LaxChamp</span>
-        </div>
-        <p class="text-slate-500 font-medium">Live Tournament Management</p>
+        /* MAIN SCOREBOARD */
+        .main-board { 
+            display: flex; flex: 1; align-items: center; justify-content: center; 
+            position: relative;
+        }
+        
+        .team { flex: 1; text-align: center; z-index: 2; }
+        .team-name { font-size: 4vw; font-weight: bold; margin-bottom: 10px; color: #ccc; text-transform: uppercase; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
+        .team-score { font-size: 18vw; font-weight: 800; color: #fff; line-height: 1; text-shadow: 0 0 20px rgba(255,255,255,0.1); }
+
+        /* CENTER ICON CONTAINER */
+        .center-graphic {
+            width: 15vw; height: 15vw;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0.3; /* Subtle background effect */
+            filter: grayscale(100%);
+            transition: opacity 0.5s;
+        }
+
+        /* FOOTER (TIMER) */
+        .footer { 
+            height: 22vh; background: #000; border-top: 4px solid #333; 
+            display: flex; align-items: center; justify-content: center; 
+            box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
+        }
+        .timer { font-size: 10vw; font-family: 'Courier New', monospace; font-weight: bold; color: #f1c40f; letter-spacing: -5px; }
+        .timer.paused { color: #555; animation: blink 1.5s infinite; }
+
+        @keyframes blink { 50% { opacity: 0.4; } }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="header-title">Tournament Champ</div>
+        <div id="divisionDisplay" class="division-badge">LIVE</div>
     </div>
 
-    <div class="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-200 overflow-hidden p-8">
-        
-        <!-- ROLE SELECTOR -->
-        <div class="space-y-3">
-            <button onclick="setRole('spectator')" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-xl transition shadow-md flex items-center justify-center gap-3">
-                <span>👀 Watch Live Scores</span>
-            </button>
-            
-            <button onclick="setRole('umpire')" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 rounded-xl transition shadow-md flex items-center justify-center gap-3">
-                <span>⏱️ Umpire Login</span>
-            </button>
-            
-            <button onclick="setRole('admin')" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-4 rounded-xl transition shadow-md flex items-center justify-center gap-3">
-                <span>📋 Tournament Admin</span>
-            </button>
+    <div class="main-board">
+        <div class="team">
+            <div id="nameA" class="team-name">HOME</div>
+            <div id="scoreA" class="team-score">0</div>
         </div>
-
-        <!-- LOGIN FORM (Hidden by default) -->
-        <div id="loginForm" class="hidden mt-6 pt-6 border-t border-slate-100">
-            <h3 id="loginTitle" class="text-lg font-bold text-slate-800 mb-2 text-center">Enter Tournament ID</h3>
-            <input type="text" id="eventId" placeholder="e.g. nats25" class="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-lg font-bold text-center uppercase focus:outline-none focus:border-indigo-500 transition-colors mb-3">
-            
-            <div id="pinContainer" class="hidden">
-                <input type="password" id="eventPin" placeholder="PIN" class="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-lg font-bold text-center focus:outline-none focus:border-indigo-500 transition-colors mb-3">
+        
+        <div class="center-graphic" id="sportIcon">
             </div>
 
-            <button onclick="go()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition">Enter</button>
-            <button onclick="reset()" class="w-full text-slate-400 text-sm mt-3 hover:text-slate-600">Cancel</button>
+        <div class="team">
+            <div id="nameB" class="team-name">AWAY</div>
+            <div id="scoreB" class="team-score">0</div>
         </div>
+    </div>
 
+    <div class="footer">
+        <div id="timer" class="timer">00:00</div>
     </div>
 
     <script type="module">
-        // Just importing to wake up the app, logic handles the rest
-        import { db } from './firebase-config.js';
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB421IaC3NQIDnYvNA7oVYgvfwYG-8aT4o",
+            authDomain: "tournament-champ.firebaseapp.com",
+            databaseURL: "https://tournament-champ-default-rtdb.firebaseio.com",
+            projectId: "tournament-champ",
+            storageBucket: "tournament-champ.firebasestorage.app",
+            messagingSenderId: "65472067494",
+            appId: "1:65472067494:web:ba7298e7378e7604354167",
+            measurementId: "G-2C3LWDC2X3"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
         
-        window.setRole = function(role) {
-            window.currentRole = role;
-            document.querySelector('.space-y-3').classList.add('hidden');
-            document.getElementById('loginForm').classList.remove('hidden');
-            
-            const titles = {
-                'spectator': 'Find Tournament',
-                'umpire': 'Umpire Access',
-                'admin': 'Director Login'
-            };
-            document.getElementById('loginTitle').innerText = titles[role];
+        // --- SVG ICONS LIBRARY ---
+        const icons = {
+            lacrosse: `<svg viewBox="0 0 24 24" fill="white"><path d="M19.78 4.22c-.39-.39-1.02-.39-1.41 0L12 10.59 5.64 4.22c-.39-.39-1.02-.39-1.41 0s-.39 1.02 0 1.41L10.59 12l-6.36 6.36c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0L12 13.41l6.36 6.36c.39.39 1.02.39 1.41 0 .39-.39.39-1.02 0-1.41L13.41 12l6.36-6.36c.4-.39.4-1.03.01-1.42z"/></svg>`, 
+            basketball: `<svg viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>`,
+            soccer: `<svg viewBox="0 0 24 24" fill="white"><circle cx="12" cy="12" r="10"/></svg>`,
+            rugby: `<svg viewBox="0 0 24 24" fill="white"><path d="M12 2c-5.52 0-10 2.69-10 6s4.48 6 10 6 10-2.69 10-6-4.48-6-10-6zm0 10c-4.41 0-8-1.79-8-4s3.59-4 8-4 8 1.79 8 4-3.59 4-8 4z"/></svg>`, 
+            volleyball: `<svg viewBox="0 0 24 24" fill="white"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 7.07 17.07L12 12 4.93 4.93A9.93 9.93 0 0 1 12 2z"/></svg>`,
+            hockey: `<svg viewBox="0 0 24 24" fill="white"><path d="M16.05 4.79l-4.5 9-6.38-2.55 4.5-9 6.38 2.55zM5 19h14v2H5z"/></svg>`,
+            default: `<svg viewBox="0 0 24 24" fill="white"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>`
+        };
+        
+        onValue(ref(db, 'match'), (snapshot) => {
+            const data = snapshot.val();
+            if (!data) return;
 
-            // Admin/Umpire needs PIN
-            if(role === 'admin' || role === 'umpire') {
-                document.getElementById('pinContainer').classList.remove('hidden');
+            document.getElementById('nameA').innerText = data.teamA;
+            document.getElementById('nameB').innerText = data.teamB;
+            document.getElementById('scoreA').innerText = data.scoreA;
+            document.getElementById('scoreB').innerText = data.scoreB;
+            
+            if(data.division) {
+                document.getElementById('divisionDisplay').innerText = data.division;
+            }
+
+            const iconContainer = document.getElementById('sportIcon');
+            const sportKey = data.sport ? data.sport.toLowerCase() : 'default';
+            
+            if(iconContainer.innerHTML.trim() === "") {
+                iconContainer.innerHTML = icons[sportKey] || icons['default'];
+            }
+
+            const m = Math.floor(data.time / 60).toString().padStart(2, '0');
+            const s = (data.time % 60).toString().padStart(2, '0');
+            
+            const timerEl = document.getElementById('timer');
+            timerEl.innerText = `${m}:${s}`;
+            
+            if (!data.isRunning) {
+                timerEl.classList.add('paused');
             } else {
-                document.getElementById('pinContainer').classList.add('hidden');
+                timerEl.classList.remove('paused');
             }
-        };
-
-        window.reset = function() {
-            document.querySelector('.space-y-3').classList.remove('hidden');
-            document.getElementById('loginForm').classList.add('hidden');
-            document.getElementById('eventId').value = '';
-            document.getElementById('eventPin').value = '';
-        };
-
-        window.go = function() {
-            const id = document.getElementById('eventId').value.trim().toLowerCase();
-            const pin = document.getElementById('eventPin').value.trim();
-            
-            if(!id) return alert("Please enter an Event ID");
-
-            let url = '';
-            let params = `?event=${id}`;
-
-            if (window.currentRole === 'spectator') {
-                url = 'live.html';
-            } else if (window.currentRole === 'umpire') {
-                if(pin !== '1234') return alert("Incorrect Umpire PIN"); 
-                url = 'umpire.html';
-            } else if (window.currentRole === 'admin') {
-                 if(pin !== '9999') return alert("Incorrect Admin PIN");
-                 url = 'admin.html';
-                 params += '&auth=admin';
-            }
-
-            window.location.href = url + params;
-        };
+        });
     </script>
 </body>
 </html>
