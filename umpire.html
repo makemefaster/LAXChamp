@@ -7,18 +7,15 @@
     <style>
         body { font-family: -apple-system, system-ui, sans-serif; text-align: center; padding: 15px; background: #121212; color: white; user-select: none; }
         
-        /* HEADER */
         .header-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; color: #888; font-size: 0.9rem; }
         .badge { background: #333; padding: 4px 10px; border-radius: 4px; }
 
-        /* SCOREBOARD CARDS */
         .scoreboard { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
         
         .team-card { background: #1e1e1e; padding: 15px; border-radius: 12px; border: 1px solid #333; display: flex; flex-direction: column; justify-content: space-between; }
         .team-name { font-size: 1.1rem; color: #aaa; margin-bottom: 5px; font-weight: 500; min-height: 1.4em;}
         .score-display { font-size: 3.5rem; font-weight: bold; margin: 10px 0; display: block; }
         
-        /* DYNAMIC BUTTONS AREA */
         .controls-grid { display: flex; flex-direction: column; gap: 8px; }
         
         button { width: 100%; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; padding: 15px 0; transition: transform 0.1s; }
@@ -26,45 +23,36 @@
 
         .btn-score { background: #28a745; color: white; }
         .btn-score.secondary { background: #1e5c30; font-size: 0.9rem; padding: 10px 0; }
-        
         .btn-minus { background: #333; color: #ccc; font-size: 0.9rem; padding: 8px 0; margin-top: auto; }
 
-        /* TIMER SECTION */
         .timer-box { background: #1e1e1e; padding: 20px; border-radius: 12px; border: 1px solid #333; margin-top: 20px; }
         #timerDisplay { font-size: 4rem; font-family: 'Courier New', monospace; font-weight: bold; margin-bottom: 10px; }
-        
         .btn-toggle { background: #ffc107; color: black; }
         .btn-toggle.active { background: #dc3545; color: white; }
         
-        /* PERIOD/QUARTER INDICATOR */
         .period-controls { display: flex; gap: 10px; margin-top: 15px; justify-content: center; }
         .period-btn { background: #333; color: white; width: auto; padding: 10px 20px; font-size: 0.9rem; }
-
     </style>
 </head>
 <body>
 
     <div class="header-info">
-        <span id="sportLabel">SPORT</span>
-        <span id="divisionLabel" class="badge">DIVISION</span>
+        <span id="sportLabel">LOADING...</span>
+        <span id="divisionLabel" class="badge">-</span>
     </div>
 
     <div class="scoreboard">
         <div class="team-card">
             <div id="nameA" class="team-name">Home</div>
             <span id="scoreA" class="score-display">0</span>
-            
-            <div id="controlsA" class="controls-grid">
-                </div>
+            <div id="controlsA" class="controls-grid"></div>
             <button class="btn-minus" onclick="updateScore('A', -1)">- Undo</button>
         </div>
 
         <div class="team-card">
             <div id="nameB" class="team-name">Away</div>
             <span id="scoreB" class="score-display">0</span>
-            
-            <div id="controlsB" class="controls-grid">
-                 </div>
+            <div id="controlsB" class="controls-grid"></div>
             <button class="btn-minus" onclick="updateScore('B', -1)">- Undo</button>
         </div>
     </div>
@@ -72,7 +60,6 @@
     <div class="timer-box">
         <div id="timerDisplay">00:00</div>
         <button id="toggleTimer" class="btn-toggle">START GAME</button>
-        
         <div class="period-controls">
             <button class="period-btn" onclick="adjustTime(60)">+1 Min</button>
             <button class="period-btn" onclick="adjustTime(-60)">-1 Min</button>
@@ -80,37 +67,33 @@
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
         import { getDatabase, ref, onValue, update, increment } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+        import { app } from './firebase-config.js';
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyB421IaC3NQIDnYvNA7oVYgvfwYG-8aT4o",
-            authDomain: "tournament-champ.firebaseapp.com",
-            databaseURL: "https://tournament-champ-default-rtdb.firebaseio.com",
-            projectId: "tournament-champ",
-            storageBucket: "tournament-champ.firebasestorage.app",
-            messagingSenderId: "65472067494",
-            appId: "1:65472067494:web:ba7298e7378e7604354167",
-            measurementId: "G-2C3LWDC2X3"
-        };
-
-        const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
-        const matchRef = ref(db, 'match');
+
+        // 1. Get Event ID
+        const params = new URLSearchParams(window.location.search);
+        const eventId = params.get('event');
+
+        if(!eventId) {
+            alert("Error: No Tournament Selected.");
+            window.location.href = "index.html";
+        }
+
+        const matchRef = ref(db, `tournaments/${eventId}/match`);
 
         let isRunning = false;
         let currentTime = 0;
         let timerInterval = null;
         let currentSport = '';
 
-        // --- 1. DYNAMIC BUTTON GENERATOR ---
+        // Dynamic Controls
         const renderControls = (sport) => {
-            if (currentSport === sport) return; // prevent re-rendering if same
+            if (currentSport === sport) return;
             currentSport = sport;
-
             const controlsA = document.getElementById('controlsA');
             const controlsB = document.getElementById('controlsB');
-            
             let html = '';
 
             if (sport === 'basketball') {
@@ -120,33 +103,26 @@
                     <button class="btn-score secondary" onclick="updateScore('TEAM_ID', 1)">+1 FT</button>
                 `;
             } else {
-                // Default (Lacrosse, Soccer, Hockey, etc.)
                 html = `<button class="btn-score" onclick="updateScore('TEAM_ID', 1)">GOAL</button>`;
             }
-
             controlsA.innerHTML = html.replace(/TEAM_ID/g, 'A');
             controlsB.innerHTML = html.replace(/TEAM_ID/g, 'B');
         };
 
-        // --- 2. DATA LISTENER ---
+        // Data Listener
         onValue(matchRef, (snapshot) => {
             const data = snapshot.val();
             if (!data) return;
 
-            // Update Labels
             document.getElementById('sportLabel').innerText = (data.sport || 'GAME').toUpperCase();
             document.getElementById('divisionLabel').innerText = data.division || '-';
-            
-            // Render Buttons (Only if sport changed)
             renderControls(data.sport);
 
-            // Update Scores & Names
             document.getElementById('nameA').innerText = data.teamA;
             document.getElementById('nameB').innerText = data.teamB;
             document.getElementById('scoreA').innerText = data.scoreA;
             document.getElementById('scoreB').innerText = data.scoreB;
             
-            // Update Timer State
             currentTime = data.time;
             isRunning = data.isRunning;
             updateTimerUI();
@@ -154,7 +130,7 @@
             handleLocalTimer(isRunning);
         });
 
-        // --- 3. TIMER LOGIC ---
+        // Timer Logic
         function handleLocalTimer(active) {
             if (timerInterval) clearInterval(timerInterval);
             if (active) {
@@ -162,7 +138,7 @@
                     if (currentTime > 0) {
                         currentTime--;
                         updateTimerUI();
-                        // Sync to DB occasionally or at end
+                        // Sync to DB occasionally
                         if (currentTime % 5 === 0 || currentTime === 0) {
                             update(matchRef, { time: currentTime });
                         }
@@ -188,7 +164,7 @@
             }
         }
 
-        // --- 4. ACTIONS ---
+        // Actions
         window.updateScore = (team, amount) => {
             const updates = {};
             updates[`score${team}`] = increment(amount);
