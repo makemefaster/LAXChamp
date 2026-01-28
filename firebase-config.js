@@ -1,7 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
 import { getDatabase } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 
-// PASTE YOUR NEW LAXCHAMP KEYS HERE
 const firebaseConfig = {
   apiKey: "AIzaSyB421IaC3NQIDnYvNA7oVYgvfwYG-8aT4o",
   authDomain: "tournament-champ.firebaseapp.com",
@@ -16,4 +15,5 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-export { db };
+// NOW EXPORTING app AS WELL
+export { app, db };
