@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LaxChamp Director Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 min-h-screen text-white flex items-center justify-center p-4">
+
+    <div class="w-full max-w-md bg-slate-800 rounded-2xl shadow-2xl p-8 border border-slate-700">
+        
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold tracking-tight text-white">Director Portal</h1>
+            <p class="text-slate-400">Tournament Management</p>
+        </div>
+
+        <div id="loginSection">
+            <input type="email" id="email" placeholder="Director Email" class="w-full mb-3 p-3 rounded bg-slate-700 border border-slate-600 focus:border-blue-500 focus:outline-none text-white">
+            <input type="password" id="password" placeholder="Password" class="w-full mb-6 p-3 rounded bg-slate-700 border border-slate-600 focus:border-blue-500 focus:outline-none text-white">
+            <button onclick="login()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg transition">Log In</button>
+        </div>
+
+        <div id="dashboardSection" class="hidden">
+            <div class="flex justify-between items-center mb-6 border-b border-slate-700 pb-4">
+                <div class="font-bold text-lg">My Tournaments</div>
+                <button onclick="logout()" class="text-sm text-red-400 hover:text-red-300">Sign Out</button>
+            </div>
+
+            <div id="eventList" class="space-y-3 mb-6 max-h-60 overflow-y-auto">
+                <p class="text-slate-500 text-sm text-center">Loading events...</p>
+            </div>
+
+            <div class="pt-4 border-t border-slate-700">
+                <h3 class="font-bold text-sm text-slate-400 mb-2 uppercase">Create New Event</h3>
+                <div class="flex gap-2">
+                    <input type="text" id="newEventName" placeholder="e.g. Summer Slam '26" class="flex-1 p-2 rounded bg-slate-900 border border-slate-600 text-sm">
+                    <button onclick="createEvent()" class="bg-green-600 hover:bg-green-500 px-4 py-2 rounded text-sm font-bold">Create</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+        import { getDatabase, ref, push, set, onValue, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+        import { firebaseConfig } from './firebase-config.js';
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+
+        // AUTH STATE LISTENER
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                document.getElementById('loginSection').classList.add('hidden');
+                document.getElementById('dashboardSection').classList.remove('hidden');
+                loadEvents(user.uid);
+            } else {
+                document.getElementById('loginSection').classList.remove('hidden');
+                document.getElementById('dashboardSection').classList.add('hidden');
+            }
+        });
+
+        window.login = () => {
+            const e = document.getElementById('email').value;
+            const p = document.getElementById('password').value;
+            signInWithEmailAndPassword(auth, e, p).catch(err => alert("Login Error: " + err.message));
+        };
+
+        window.logout = () => signOut(auth);
+
+        window.createEvent = () => {
+            const name = document.getElementById('newEventName').value;
+            if(!name) return;
+            
+            // Create unique ID slug
+            const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+            const uid = auth.currentUser.uid;
+
+            // Save to DB
+            const eventRef = ref(db, `tournaments/${slug}`);
+            set(eventRef, {
+                name: name,
+                owner: uid,
+                created: serverTimestamp(),
+                active: true
+            }).then(() => {
+                document.getElementById('newEventName').value = '';
+                alert("Event Created!");
+            }).catch(err => alert("Error: " + err.message));
+        };
+
+        function loadEvents(uid) {
+            // In a real app, you'd query only events owned by UID. 
+            // For now, we load all and filter client-side for simplicity.
+            onValue(ref(db, 'tournaments'), (snap) => {
+                const list = document.getElementById('eventList');
+                list.innerHTML = '';
+                
+                if(!snap.exists()) {
+                    list.innerHTML = '<p class="text-slate-500 text-sm">No events found.</p>';
+                    return;
+                }
+
+                snap.forEach(child => {
+                    const event = child.val();
+                    const id = child.key;
+                    
+                    // Simple card for each event
+                    const div = document.createElement('div');
+                    div.className = 'bg-slate-700 p-3 rounded flex justify-between items-center group';
+                    div.innerHTML = `
+                        <div>
+                            <div class="font-bold text-white">${event.name}</div>
+                            <div class="text-xs text-slate-400">ID: ${id}</div>
+                        </div>
+                        <div class="flex gap-2">
+                            <a href="admin.html?event=${id}" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1 rounded">Manage</a>
+                            <button onclick="copyLink('${id}')" class="bg-slate-600 hover:bg-slate-500 text-white text-xs px-3 py-1 rounded">Copy Link</button>
+                        </div>
+                    `;
+                    list.appendChild(div);
+                });
+            });
+        }
+
+        window.copyLink = (id) => {
+            const url = `${window.location.origin}/index.html?event=${id}`;
+            navigator.clipboard.writeText(url);
+            alert("Public Link Copied!\nShare this with teams: " + url);
+        };
+    </script>
+</body>
+</html>
