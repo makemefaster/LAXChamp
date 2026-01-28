@@ -1,136 +1,20 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tournament Champ - Setup Wizard</title>
-    <style>
-        :root { --primary: #007bff; --bg: #f8f9fa; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); padding: 20px; color: #333; }
-        
-        /* Wizard Container */
-        .wizard-container { max-width: 600px; margin: 40px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        
-        h1 { margin-top: 0; font-size: 1.5rem; color: #444; }
-        h2 { font-size: 1.2rem; margin-bottom: 20px; }
-        p.subtitle { color: #666; font-size: 0.9rem; margin-bottom: 20px; }
-
-        /* Step Visibility */
-        .step { display: none; animation: fadeIn 0.3s ease-in-out; }
-        .step.active { display: block; }
-        
-        /* Inputs & Buttons */
-        label { display: block; margin-top: 15px; font-weight: 500; font-size: 0.9rem; }
-        input, select { width: 100%; padding: 12px; margin-top: 5px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; box-sizing: border-box; }
-        input:focus { border-color: var(--primary); outline: none; }
-        
-        .btn-group { display: flex; gap: 10px; margin-top: 30px; }
-        button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; transition: 0.2s; }
-        .btn-next { background: var(--primary); color: white; }
-        .btn-back { background: #e2e6ea; color: #333; }
-        .btn-add { background: #28a745; color: white; margin-top: 10px; width: auto; padding: 8px 15px; font-size: 0.9rem;}
-
-        /* Sport Selection Cards */
-        .sport-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .sport-card { padding: 15px; border: 2px solid #eee; border-radius: 8px; text-align: center; cursor: pointer; }
-        .sport-card:hover { border-color: #ccc; }
-        .sport-card.selected { border-color: var(--primary); background: #e7f1ff; color: var(--primary); font-weight: bold; }
-
-        /* Division List */
-        .division-item { background: #f8f9fa; padding: 10px; margin-top: 10px; border-radius: 6px; border-left: 4px solid var(--primary); }
-        
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-    </style>
-</head>
-<body>
-
-<div class="wizard-container">
-    <div style="font-size: 0.8rem; color: #aaa; margin-bottom: 10px;">SETUP WIZARD</div>
-
-    <div id="step1" class="step active">
-        <h1>What are we playing?</h1>
-        <p class="subtitle">This sets the rules, timing, and scoring terms.</p>
-        
-        <div class="sport-grid">
-            <div class="sport-card" onclick="selectSport('lacrosse')">🥍 Lacrosse</div>
-            <div class="sport-card" onclick="selectSport('basketball')">🏀 Basketball</div>
-            <div class="sport-card" onclick="selectSport('soccer')">⚽ Soccer</div>
-            <div class="sport-card" onclick="selectSport('rugby')">🏉 Rugby</div>
-            <div class="sport-card" onclick="selectSport('hockey')">🏒 Hockey</div>
-            <div class="sport-card" onclick="selectSport('volleyball')">🏐 Volleyball</div>
-            <div class="sport-card" onclick="selectSport('netball')">🏐 Netball</div>
-            <div class="sport-card" onclick="selectSport('baseball')">⚾ Baseball</div>
-        </div>
-    </div>
-
-    <div id="step2" class="step">
-        <h1>Game Settings</h1>
-        <p class="subtitle">We pre-filled these based on your sport.</p>
-        
-        <label>Game Duration (Minutes)</label>
-        <input type="number" id="gameDuration">
-        
-        <label>Break/Halftime Duration (Minutes)</label>
-        <input type="number" id="breakDuration" value="5">
-
-        <label>Number of Fields/Courts</label>
-        <input type="number" id="fieldCount" value="1">
-
-        <div class="btn-group">
-            <button class="btn-back" onclick="changeStep(1)">Back</button>
-            <button class="btn-next" onclick="changeStep(3)">Next</button>
-        </div>
-    </div>
-
-    <div id="step3" class="step">
-        <h1>Who is playing?</h1>
-        <p class="subtitle">Create divisions (e.g. "U12 Boys") and add teams.</p>
-
-        <label>Division Name</label>
-        <input type="text" id="divNameInput" placeholder="e.g. Varsity A">
-        
-        <label>Teams (Comma separated)</label>
-        <input type="text" id="teamsInput" placeholder="Tigers, Lions, Bears...">
-
-        <button class="btn-add" onclick="addDivision()">+ Add Division</button>
-
-        <div id="divisionList"></div>
-
-        <div class="btn-group">
-            <button class="btn-back" onclick="changeStep(2)">Back</button>
-            <button class="btn-next" onclick="finishSetup()">Generate Schedule</button>
-        </div>
-    </div>
-
-    <div id="step4" class="step">
-        <h1 style="color: green;">🎉 Schedule Ready!</h1>
-        <p>The schedule has been generated.</p>
-        <p>Redirecting to Dashboard...</p>
-    </div>
-
-</div>
-
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
     import { getDatabase, ref, set, push } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
-
-    const firebaseConfig = {
-        apiKey: "AIzaSyB421IaC3NQIDnYvNA7oVYgvfwYG-8aT4o",
-        authDomain: "tournament-champ.firebaseapp.com",
-        databaseURL: "https://tournament-champ-default-rtdb.firebaseio.com",
-        projectId: "tournament-champ",
-        storageBucket: "tournament-champ.firebasestorage.app",
-        messagingSenderId: "65472067494",
-        appId: "1:65472067494:web:ba7298e7378e7604354167",
-        measurementId: "G-2C3LWDC2X3"
-    };
+    import { firebaseConfig } from './firebase-config.js';
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // --- LOGIC ---
-    
-    // 1. Sport Presets (Expanded List)
+    // 1. GET EVENT ID FROM URL
+    const params = new URLSearchParams(window.location.search);
+    const eventId = params.get('event');
+
+    if(!eventId) {
+        alert("No Event ID provided. Please access via Director Portal.");
+        window.location.href = "director.html";
+    }
+
     const sportPresets = {
         lacrosse: { duration: 60, break: 10, periods: 4 },
         basketball: { duration: 40, break: 15, periods: 4 },
@@ -139,26 +23,19 @@
         hockey: { duration: 60, break: 15, periods: 3 },
         volleyball: { duration: 60, break: 10, periods: 3 },
         netball: { duration: 60, break: 5, periods: 4 },
-        ultimate: { duration: 50, break: 10, periods: 2 },
         baseball: { duration: 120, break: 20, periods: 1 }
     };
 
-    let tournamentData = {
-        sport: '',
-        settings: {},
-        divisions: []
-    };
+    let tournamentData = { sport: '', settings: {}, divisions: [] };
 
     window.selectSport = (sport) => {
         document.querySelectorAll('.sport-card').forEach(el => el.classList.remove('selected'));
         event.target.classList.add('selected');
-        
         tournamentData.sport = sport;
         
         const s = sportPresets[sport] || { duration: 30, break: 5 };
         document.getElementById('gameDuration').value = s.duration;
         document.getElementById('breakDuration').value = s.break;
-
         setTimeout(() => changeStep(2), 300);
     };
 
@@ -170,18 +47,16 @@
     window.addDivision = () => {
         const name = document.getElementById('divNameInput').value;
         const teamsStr = document.getElementById('teamsInput').value;
+        if(!name || !teamsStr) return alert("Fill info");
         
-        if(!name || !teamsStr) return alert("Please fill in division info");
-
         const teams = teamsStr.split(',').map(t => t.trim());
-        
         tournamentData.divisions.push({ name, teams });
-
+        
         const divEl = document.createElement('div');
         divEl.className = 'division-item';
         divEl.innerHTML = `<strong>${name}</strong>: ${teams.length} teams`;
         document.getElementById('divisionList').appendChild(divEl);
-
+        
         document.getElementById('divNameInput').value = '';
         document.getElementById('teamsInput').value = '';
     };
@@ -193,11 +68,12 @@
             fields: parseInt(document.getElementById('fieldCount').value)
         };
 
-        const scheduleRef = ref(db, 'schedule');
-        const matches = [];
+        // WRITE TO SPECIFIC EVENT NODE
+        const scheduleRef = ref(db, `tournaments/${eventId}/schedule`);
+        const matchRef = ref(db, `tournaments/${eventId}/match`); // Init match state
+        
         let matchIdCounter = 1;
 
-        // GENERATE SCHEDULE (Round Robin Logic)
         tournamentData.divisions.forEach(div => {
             const teams = div.teams;
             for (let i = 0; i < teams.length; i++) {
@@ -213,20 +89,19 @@
                         timeRemaining: tournamentData.settings.duration * 60,
                         sport: tournamentData.sport,
                         field: (matchIdCounter % tournamentData.settings.fields) + 1,
-                        timeSlot: "10:00" // Placeholder time
+                        timeSlot: "10:00"
                     };
-                    
                     push(scheduleRef, newMatch);
                 }
             }
         });
 
+        // Initialize Live Match State (Empty)
+        set(matchRef, {
+            teamA: "TBD", teamB: "TBD", scoreA: 0, scoreB: 0, 
+            time: 0, isRunning: false, sport: tournamentData.sport
+        });
+
         changeStep(4);
-        
-        // Optional: Redirect to a dashboard if you have one
-        // setTimeout(() => window.location.href = 'admin-dashboard.html', 1500);
     };
 </script>
-
-</body>
-</html>
