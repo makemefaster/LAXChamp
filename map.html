@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Venue Map</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-black h-screen flex flex-col">
+    <div class="bg-black text-white p-4 flex justify-between items-center z-10 border-b border-gray-800">
+        <button onclick="goBack()" class="text-gray-400">← Back</button>
+        <h1 class="font-bold">Venue Map</h1>
+        <button onclick="toggleAdmin()" class="opacity-0 hover:opacity-100">⚙️</button>
+    </div>
+    
+    <div class="flex-1 flex items-center justify-center relative overflow-hidden bg-gray-900">
+        <div id="loadingText" class="text-gray-500">Loading Map...</div>
+        <img id="mapImage" class="hidden max-w-full max-h-full object-contain" />
+        
+        <div id="uploadPanel" class="hidden absolute inset-0 bg-black/80 flex items-center justify-center">
+            <div class="bg-white p-6 rounded text-black text-center">
+                <h3 class="font-bold mb-2">Upload New Map</h3>
+                <input type="file" id="fileInput" accept="image/*" class="block mb-4">
+                <button id="saveBtn" class="bg-blue-600 text-white px-4 py-2 rounded">Upload</button>
+                <button onclick="toggleAdmin()" class="text-red-500 block mt-4 text-sm w-full">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+        import { getAuth } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+        import { app } from './firebase-config.js';
+
+        const db = getDatabase(app);
+        const auth = getAuth(app);
+
+        // 1. Get Event ID
+        const params = new URLSearchParams(window.location.search);
+        const eventId = params.get('event');
+
+        if(eventId) {
+            const mapRef = ref(db, `tournaments/${eventId}/venue/mapImage`);
+
+            // Load Map
+            onValue(mapRef, (snapshot) => {
+                const b64 = snapshot.val();
+                const img = document.getElementById('mapImage');
+                const loadTxt = document.getElementById('loadingText');
+                
+                if (b64) {
+                    img.src = b64;
+                    img.classList.remove('hidden');
+                    loadTxt.classList.add('hidden');
+                } else {
+                    loadTxt.innerText = "No map uploaded for this event.";
+                }
+            });
+
+            // Admin Logic
+            document.getElementById('saveBtn').addEventListener('click', () => {
+                if(!auth.currentUser) return alert("Must be logged in as Admin");
+                
+                const file = document.getElementById('fileInput').files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = (e) => {
+                    // Simple compression (Canvas)
+                    const img = new Image();
+                    img.src = e.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 800;
+                        const scaleSize = MAX_WIDTH / img.width;
+                        canvas.width = MAX_WIDTH;
+                        canvas.height = img.height * scaleSize;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        
+                        const compressed = canvas.toDataURL('image/jpeg', 0.7);
+                        set(mapRef, compressed).then(() => {
+                            alert("Map Uploaded");
+                            toggleAdmin();
+                        });
+                    };
+                };
+            });
+        }
+
+        window.goBack = () => {
+            window.location.href = `index.html?event=${eventId}`;
+        };
+
+        window.toggleAdmin = () => {
+            document.getElementById('uploadPanel').classList.toggle('hidden');
+        };
+    </script>
+</body>
+</html>
