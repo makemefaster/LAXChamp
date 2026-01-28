@@ -44,9 +44,20 @@
         .timer.paused { color: #555; animation: blink 1.5s infinite; }
 
         @keyframes blink { 50% { opacity: 0.4; } }
+        
+        /* Error Message */
+        #errorOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 100; align-items: center; justify-content: center; text-align: center; }
     </style>
 </head>
 <body>
+
+    <div id="errorOverlay">
+        <div>
+            <h2 style="color: #dc3545;">No Event Selected</h2>
+            <p>Please return to the home page.</p>
+            <a href="index.html" style="color: white; text-decoration: underline;">Go Home</a>
+        </div>
+    </div>
 
     <div class="header">
         <div class="header-title">Tournament Champ</div>
@@ -59,8 +70,7 @@
             <div id="scoreA" class="team-score">0</div>
         </div>
         
-        <div class="center-graphic" id="sportIcon">
-            </div>
+        <div class="center-graphic" id="sportIcon"></div>
 
         <div class="team">
             <div id="nameB" class="team-name">AWAY</div>
@@ -73,74 +83,63 @@
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
         import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+        import { app } from './firebase-config.js'; // Using central config
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyB421IaC3NQIDnYvNA7oVYgvfwYG-8aT4o",
-            authDomain: "tournament-champ.firebaseapp.com",
-            databaseURL: "https://tournament-champ-default-rtdb.firebaseio.com",
-            projectId: "tournament-champ",
-            storageBucket: "tournament-champ.firebasestorage.app",
-            messagingSenderId: "65472067494",
-            appId: "1:65472067494:web:ba7298e7378e7604354167",
-            measurementId: "G-2C3LWDC2X3"
-        };
-
-        const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
         
-        // --- SVG ICONS LIBRARY ---
-        // Simple SVGs for the visual feedback
-        const icons = {
-            lacrosse: `<svg viewBox="0 0 24 24" fill="white"><path d="M19.78 4.22c-.39-.39-1.02-.39-1.41 0L12 10.59 5.64 4.22c-.39-.39-1.02-.39-1.41 0s-.39 1.02 0 1.41L10.59 12l-6.36 6.36c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0L12 13.41l6.36 6.36c.39.39 1.02.39 1.41 0 .39-.39.39-1.02 0-1.41L13.41 12l6.36-6.36c.4-.39.4-1.03.01-1.42z"/></svg>`, // Generic Cross sticks (placeholder for lacrosse)
-            basketball: `<svg viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>`,
-            soccer: `<svg viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>`, // Using ball generic for now
-            default: `<svg viewBox="0 0 24 24" fill="white"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>` // Plus sign
-        };
-        
-        // ** Note: For real sports icons, you would swap the SVG paths above with actual sport icons. 
-        // Since I'm generating code, I'm using generic shapes or similar paths as placeholders.
-        // If you want specific detailed icons, you can paste SVG paths from FontAwesome or similar here.
+        // 1. Get Event ID
+        const params = new URLSearchParams(window.location.search);
+        const eventId = params.get('event');
 
-        onValue(ref(db, 'match'), (snapshot) => {
-            const data = snapshot.val();
-            if (!data) return;
+        if(!eventId) {
+            document.getElementById('errorOverlay').style.display = 'flex';
+        } else {
+            // 2. Connect to Specific Tournament Node
+            const matchRef = ref(db, `tournaments/${eventId}/match`);
 
-            // 1. Text Data
-            document.getElementById('nameA').innerText = data.teamA;
-            document.getElementById('nameB').innerText = data.teamB;
-            document.getElementById('scoreA').innerText = data.scoreA;
-            document.getElementById('scoreB').innerText = data.scoreB;
-            
-            // 2. Division Badge (if exists)
-            if(data.division) {
-                document.getElementById('divisionDisplay').innerText = data.division;
-            }
+            onValue(matchRef, (snapshot) => {
+                const data = snapshot.val();
+                if (!data) return; // Wait for data
 
-            // 3. Dynamic Icon
-            // It checks if the sport changed, then updates the SVG
-            const iconContainer = document.getElementById('sportIcon');
-            const sportKey = data.sport ? data.sport.toLowerCase() : 'default';
-            
-            // Only update innerHTML if it's currently empty to avoid re-rendering flickering
-            if(iconContainer.innerHTML.trim() === "") {
-                iconContainer.innerHTML = icons[sportKey] || icons['default'];
-            }
+                document.getElementById('nameA').innerText = data.teamA || 'Home';
+                document.getElementById('nameB').innerText = data.teamB || 'Away';
+                document.getElementById('scoreA').innerText = data.scoreA || 0;
+                document.getElementById('scoreB').innerText = data.scoreB || 0;
+                
+                if(data.division) {
+                    document.getElementById('divisionDisplay').innerText = data.division;
+                }
 
-            // 4. Timer Logic
-            const m = Math.floor(data.time / 60).toString().padStart(2, '0');
-            const s = (data.time % 60).toString().padStart(2, '0');
-            
-            const timerEl = document.getElementById('timer');
-            timerEl.innerText = `${m}:${s}`;
-            
-            if (!data.isRunning) {
-                timerEl.classList.add('paused');
-            } else {
-                timerEl.classList.remove('paused');
-            }
-        });
+                // Sport Icon Logic
+                const iconContainer = document.getElementById('sportIcon');
+                const sportKey = data.sport ? data.sport.toLowerCase() : 'default';
+                const icons = {
+                    lacrosse: `<svg viewBox="0 0 24 24" fill="white"><path d="M19.78 4.22c-.39-.39-1.02-.39-1.41 0L12 10.59 5.64 4.22c-.39-.39-1.02-.39-1.41 0s-.39 1.02 0 1.41L10.59 12l-6.36 6.36c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0L12 13.41l6.36 6.36c.39.39 1.02.39 1.41 0 .39-.39.39-1.02 0-1.41L13.41 12l6.36-6.36c.4-.39.4-1.03.01-1.42z"/></svg>`, 
+                    basketball: `<svg viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>`,
+                    soccer: `<svg viewBox="0 0 24 24" fill="white"><circle cx="12" cy="12" r="10"/></svg>`,
+                    default: `<svg viewBox="0 0 24 24" fill="white"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>`
+                };
+                
+                if(iconContainer.innerHTML.trim() === "") {
+                    iconContainer.innerHTML = icons[sportKey] || icons['default'];
+                }
+
+                // Timer Logic
+                const time = data.time || 0;
+                const m = Math.floor(time / 60).toString().padStart(2, '0');
+                const s = (time % 60).toString().padStart(2, '0');
+                
+                const timerEl = document.getElementById('timer');
+                timerEl.innerText = `${m}:${s}`;
+                
+                if (!data.isRunning) {
+                    timerEl.classList.add('paused');
+                } else {
+                    timerEl.classList.remove('paused');
+                }
+            });
+        }
     </script>
 </body>
 </html>
