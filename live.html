@@ -3,41 +3,117 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Score</title>
+    <title>Live Scores</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body{background:#1a1a1a;color:white;font-family:sans-serif;height:100vh;display:flex;flex-direction:column;margin:0}
-        .main-board{flex:1;display:flex;align-items:center;justify-content:center}
-        .team{flex:1;text-align:center}.score{font-size:18vw;font-weight:bold}
-        .timer{font-size:10vw;text-align:center;color:#f1c40f;font-family:monospace;background:black;padding:20px}
+        body { background-color: #0f172a; color: white; font-family: system-ui, -apple-system, sans-serif; }
+        .live-card { animation: fadein 0.5s; }
+        @keyframes fadein { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+        .blink { animation: blinker 1.5s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0.5; } }
     </style>
 </head>
-<body>
-    <div style="padding:20px;text-align:center;background:#222">TOURNAMENT CHAMP</div>
-    <div class="main-board">
-        <div class="team"><div id="nameA">HOME</div><div id="scoreA" class="score">0</div></div>
-        <div class="team"><div id="nameB">AWAY</div><div id="scoreB" class="score">0</div></div>
+<body class="p-4 md:p-8 min-h-screen">
+
+    <div class="flex justify-between items-center mb-8 border-b border-slate-800 pb-4">
+        <div>
+            <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">TOURNAMENT LIVE</h1>
+            <p class="text-slate-400 text-sm" id="eventName">Loading...</p>
+        </div>
+        <div class="text-right">
+            <div class="text-xs font-bold text-slate-500 uppercase">Active Matches</div>
+            <div class="text-2xl font-bold" id="activeCount">0</div>
+        </div>
     </div>
-    <div id="timer" class="timer">00:00</div>
+
+    <div id="liveGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="col-span-full text-center py-20 text-slate-600 animate-pulse">Waiting for matches to start...</div>
+    </div>
+
+    <h2 class="text-slate-500 font-bold text-sm uppercase mt-12 mb-4">Recent Finishes</h2>
+    <div id="recentGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 opacity-70"></div>
 
     <script type="module">
         import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
         import { app, db } from './firebase-config.js';
 
         const eventId = new URLSearchParams(window.location.search).get('event');
-        if(!eventId) document.body.innerHTML = "<h1 style='text-align:center'>No Event Selected</h1>";
+        if(!eventId) document.body.innerHTML = "<h1 class='text-center p-10'>No Event ID</h1>";
 
-        onValue(ref(db, `tournaments/${eventId}/match`), (snap) => {
-            const data = snap.val();
-            if(!data) return;
-            document.getElementById('nameA').innerText = data.teamA;
-            document.getElementById('nameB').innerText = data.teamB;
-            document.getElementById('scoreA').innerText = data.scoreA;
-            document.getElementById('scoreB').innerText = data.scoreB;
-            
-            const m = Math.floor(data.time/60).toString().padStart(2,'0');
-            const s = (data.time%60).toString().padStart(2,'0');
-            document.getElementById('timer').innerText = `${m}:${s}`;
+        // 1. Get Event Name
+        onValue(ref(db, `tournaments/${eventId}/name`), s => {
+            if(s.exists()) document.getElementById('eventName').innerText = s.val();
         });
+
+        // 2. Listen to ENTIRE Schedule
+        onValue(ref(db, `tournaments/${eventId}/schedule`), (snap) => {
+            const raw = snap.val();
+            if(!raw) return;
+
+            const matches = Object.values(raw);
+            const liveMatches = matches.filter(m => m.status === 'live');
+            const finishedMatches = matches.filter(m => m.status === 'finished').reverse().slice(0, 4); // Last 4
+
+            renderLive(liveMatches);
+            renderRecent(finishedMatches);
+            document.getElementById('activeCount').innerText = liveMatches.length;
+        });
+
+        function renderLive(matches) {
+            const grid = document.getElementById('liveGrid');
+            if(matches.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-20 text-slate-700 bg-slate-900 rounded-xl border border-slate-800">
+                    <p class="text-xl font-bold">No Games Currently Live</p>
+                    <p class="text-sm">Check schedule for upcoming times.</p>
+                </div>`;
+                return;
+            }
+
+            grid.innerHTML = matches.map(m => `
+                <div class="live-card bg-slate-800 border-2 border-slate-700 rounded-2xl overflow-hidden relative shadow-2xl">
+                    <div class="bg-slate-900/50 p-3 flex justify-between items-center border-b border-slate-700">
+                        <span class="bg-indigo-600 text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">${m.division || 'Open'}</span>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold text-slate-400">PITCH ${m.field}</span>
+                            <span class="w-2 h-2 rounded-full bg-red-500 blink"></span>
+                        </div>
+                    </div>
+                    
+                    <div class="p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <div class="w-2/3">
+                                <h3 class="text-xl font-bold text-white truncate">${m.teamA}</h3>
+                            </div>
+                            <div class="text-4xl font-black text-cyan-400">${m.scoreA}</div>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <div class="w-2/3">
+                                <h3 class="text-xl font-bold text-white truncate">${m.teamB}</h3>
+                            </div>
+                            <div class="text-4xl font-black text-cyan-400">${m.scoreB}</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900/50 p-2 text-center">
+                        <span class="text-xs font-mono text-yellow-500">${m.timeRemaining ? Math.floor(m.timeRemaining/60) + ' mins left' : 'In Progress'}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderRecent(matches) {
+            const grid = document.getElementById('recentGrid');
+            grid.innerHTML = matches.map(m => `
+                <div class="bg-slate-800 p-3 rounded-lg border border-slate-700 flex justify-between items-center">
+                    <div class="text-xs text-slate-400">${m.division}</div>
+                    <div class="font-bold text-sm">
+                        <span class="${m.scoreA > m.scoreB ? 'text-green-400' : 'text-slate-300'}">${m.teamA} ${m.scoreA}</span> 
+                        <span class="text-slate-600 mx-1">-</span>
+                        <span class="${m.scoreB > m.scoreA ? 'text-green-400' : 'text-slate-300'}">${m.scoreB} ${m.teamB}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
     </script>
 </body>
 </html>
