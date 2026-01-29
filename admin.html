@@ -14,7 +14,6 @@
         .option-card.recommended { border-color: #22c55e; background-color: #f0fdf4; }
         .option-card.tight { border-color: #f59e0b; background-color: #fffbeb; }
         .option-card.impossible { border-color: #ef4444; background-color: #fef2f2; opacity: 0.5; filter: grayscale(1); pointer-events: none; }
-        
         /* Custom Scrollbar */
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
@@ -42,7 +41,7 @@
                 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                     <div>
-                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Total Teams (Est.)</label>
+                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Total Teams</label>
                         <input type="number" id="teamCount" value="12" class="w-full p-4 border rounded-xl font-bold text-lg bg-slate-50 focus:ring-2 ring-indigo-500 outline-none">
                     </div>
                     <div>
@@ -96,18 +95,18 @@
                     <div class="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-indigo-100">
                         <span class="text-xs font-bold uppercase text-slate-400">Flow:</span>
                         <select id="scheduleFlow" class="text-sm font-bold text-indigo-700 bg-transparent outline-none">
-                            <option value="zipper">🔄 Interwoven (A, B, A, B)</option>
-                            <option value="block">🧱 Sequential (All A, then All B)</option>
+                            <option value="zipper">🔄 Interwoven</option>
+                            <option value="block">🧱 Sequential</option>
                         </select>
                     </div>
                 </div>
 
-                <div id="divisionInputs" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                    </div>
+                <div id="divisionInputs" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8"></div>
 
                 <button id="genBtn" onclick="generateFinal()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl text-lg shadow-lg transition transform active:scale-[0.98]">
                     Launch Tournament 🚀
                 </button>
+                <div id="debugLog" class="text-xs text-red-500 mt-2 text-center hidden"></div>
             </div>
 
         </div>
@@ -132,7 +131,7 @@
             document.getElementById('stepNum').innerText = n;
         };
 
-        // --- 1. CALCULATOR (Unchanged) ---
+        // --- 1. CALCULATOR ---
         window.calculateOptions = () => {
             const N = parseInt(document.getElementById('teamCount').value) || 0;
             const P = parseInt(document.getElementById('pitchCount').value) || 1;
@@ -144,22 +143,21 @@
             grid.innerHTML = '';
             const add = (opt) => addOptionCard(opt, N, P, slotDur, limitMins);
 
-            // The Great 8
-            add({ title: "Full League", icon: "📊", type: 'league', param: 1, desc: "1 Division. Everyone plays everyone.", matches: (N*(N-1))/2 });
+            add({ title: "Full League", icon: "📊", type: 'league', param: 1, desc: "1 Div. Everyone plays everyone.", matches: (N*(N-1))/2 });
             
             const g2Size = Math.ceil(N/2);
             const g2Games = 2 * ((g2Size*(g2Size-1))/2);
-            add({ title: "2 Divisions + Final", icon: "⚔️", type: 'groups_final', param: 2, desc: "2 pools (e.g. Pro / U15). Winners play final.", matches: g2Games + 1 });
+            add({ title: "2 Divisions + Final", icon: "⚔️", type: 'groups_final', param: 2, desc: "2 pools. Winners play final.", matches: g2Games + 1 });
             
             const g4Size = Math.ceil(N/4);
             const g4Games = 4 * ((g4Size*(g4Size-1))/2);
             add({ title: "4 Divisions + Semis", icon: "🏆", type: 'world_cup', param: 4, desc: "4 pools. Top teams advance.", matches: g4Games + 3 });
 
-            add({ title: "Waterfall", icon: "🌊", type: 'waterfall', param: 2, desc: "2 pools. Everyone plays placement finals.", matches: g2Games + (N/2) });
-            add({ title: "Swiss System", icon: "♟️", type: 'swiss', param: 1, desc: "1 big pool. 4 Rounds balanced.", matches: (N*4)/2 });
-            add({ title: "Cup & Plate", icon: "🍽️", type: 'cup_plate', param: 1, desc: "Knockout. Losers drop to Plate.", matches: (N-1) + (N/2 - 1) });
-            add({ title: "Knockout", icon: "🥊", type: 'knockout', param: 1, desc: "Single elim. Fastest.", matches: N-1 });
-            add({ title: "Double Elim", icon: "🛡️", type: 'double_elim', param: 1, desc: "Must lose twice.", matches: (2*N)-1 });
+            add({ title: "Waterfall", icon: "🌊", type: 'waterfall', param: 2, desc: "2 pools. Placement finals.", matches: g2Games + (N/2) });
+            add({ title: "Swiss System", icon: "♟️", type: 'swiss', param: 1, desc: "1 big pool. 4 Rounds.", matches: (N*4)/2 });
+            add({ title: "Cup & Plate", icon: "🍽️", type: 'cup_plate', param: 1, desc: "Knockout + Plate.", matches: (N-1) + (N/2 - 1) });
+            add({ title: "Knockout", icon: "🥊", type: 'knockout', param: 1, desc: "Single elim.", matches: N-1 });
+            add({ title: "Double Elim", icon: "🛡️", type: 'double_elim', param: 1, desc: "Lose twice.", matches: (2*N)-1 });
 
             changeStep(2);
         };
@@ -183,7 +181,7 @@
             document.getElementById('optionsGrid').appendChild(div);
         }
 
-        // --- 2. DYNAMIC INPUT GENERATOR (NEW!) ---
+        // --- 2. DYNAMIC INPUTS ---
         window.selectFormat = (opt) => {
             config = opt;
             document.getElementById('chosenFormatDisplay').innerText = opt.title;
@@ -192,106 +190,119 @@
             
             const container = document.getElementById('divisionInputs');
             container.innerHTML = '';
-
-            // Generate Input Boxes based on "Param" (Number of groups)
             const count = opt.param || 1;
             
             for(let i=0; i<count; i++) {
                 const defaultName = (count === 1) ? "League Division" : (i === 0 ? "Pro League" : (i === 1 ? "U15s" : `Group ${String.fromCharCode(65+i)}`));
-                
                 const box = document.createElement('div');
                 box.className = "bg-slate-50 border p-4 rounded-xl";
                 box.innerHTML = `
                     <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Division ${i+1} Name</label>
-                    <input type="text" id="divName_${i}" value="${defaultName}" class="w-full mb-3 p-2 border rounded font-bold text-slate-700 focus:border-indigo-500 outline-none">
-                    
+                    <input type="text" id="divName_${i}" value="${defaultName}" class="w-full mb-3 p-2 border rounded font-bold text-slate-700 outline-none">
                     <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Teams (One per line)</label>
-                    <textarea id="divTeams_${i}" class="w-full h-32 p-2 border rounded text-xs font-mono focus:border-indigo-500 outline-none" placeholder="Team A\nTeam B..."></textarea>
+                    <textarea id="divTeams_${i}" class="w-full h-32 p-2 border rounded text-xs font-mono outline-none" placeholder="Team A\nTeam B..."></textarea>
                 `;
                 container.appendChild(box);
             }
-
             changeStep(3);
         };
 
-        // --- 3. GENERATOR & SCHEDULER ---
+        // --- 3. SAFETY-FIRST GENERATOR ---
         window.generateFinal = async () => {
             const btn = document.getElementById('genBtn');
-            btn.innerText = "Processing..."; btn.disabled = true;
-
-            const slotDur = parseInt(document.getElementById('gameDur').value) + parseInt(document.getElementById('breakDur').value);
-            const pitchCount = parseInt(document.getElementById('pitchCount').value);
-            const flow = document.getElementById('scheduleFlow').value; // 'zipper' or 'block'
+            const debug = document.getElementById('debugLog');
             
-            let matchPools = [];
+            try {
+                // A. Validate Inputs
+                const slotDur = parseInt(document.getElementById('gameDur').value) + parseInt(document.getElementById('breakDur').value);
+                const pitchCount = parseInt(document.getElementById('pitchCount').value);
+                const flow = document.getElementById('scheduleFlow').value;
+                const divCount = config.param || 1;
+                let matchPools = [];
+                let totalTeamsFound = 0;
 
-            // 1. READ INPUTS & GENERATE MATCHES PER DIVISION
-            const divCount = config.param || 1;
-            
-            for(let i=0; i<divCount; i++) {
-                const divName = document.getElementById(`divName_${i}`).value || `Div ${i+1}`;
-                const rawTeams = document.getElementById(`divTeams_${i}`).value.split(/[\n,]+/).map(t=>t.trim()).filter(t=>t);
-                
-                if(rawTeams.length < 2 && divCount === 1) { alert("Need 2+ teams"); btn.disabled=false; return; }
-                if(rawTeams.length < 2) continue; // Skip empty boxes
+                // B. Loop through Boxes
+                for(let i=0; i<divCount; i++) {
+                    const nameEl = document.getElementById(`divName_${i}`);
+                    const teamEl = document.getElementById(`divTeams_${i}`);
+                    
+                    if(!nameEl || !teamEl) throw new Error(`Input Box ${i+1} missing.`);
+                    
+                    const divName = nameEl.value;
+                    const rawTeams = teamEl.value.split(/[\n,]+/).map(t=>t.trim()).filter(t=>t);
+                    
+                    if(rawTeams.length > 1) {
+                        totalTeamsFound += rawTeams.length;
+                        let pool = [];
 
-                let pool = [];
-
-                // LEAGUE / GROUPS LOGIC
-                if (['league', 'groups_final', 'world_cup', 'waterfall'].includes(config.type)) {
-                    for(let a=0; a<rawTeams.length; a++) 
-                        for(let b=a+1; b<rawTeams.length; b++) 
-                            pool.push({ teamA:rawTeams[a], teamB:rawTeams[b], division:divName, type:'group' });
+                        // LOGIC: ROUND ROBIN
+                        if (['league', 'groups_final', 'world_cup', 'waterfall'].includes(config.type)) {
+                            for(let a=0; a<rawTeams.length; a++) 
+                                for(let b=a+1; b<rawTeams.length; b++) 
+                                    pool.push({ teamA:rawTeams[a], teamB:rawTeams[b], division:divName, type:'group' });
+                        }
+                        // LOGIC: PAIRINGS
+                        else {
+                            for(let a=0; a<rawTeams.length; a+=2) 
+                                pool.push({ teamA:rawTeams[a], teamB:rawTeams[a+1]||"BYE", division:divName, type:'ko' });
+                        }
+                        matchPools.push(pool);
+                    }
                 }
-                // KNOCKOUT / SWISS LOGIC (Simplified: R1 only)
-                else {
-                    for(let a=0; a<rawTeams.length; a+=2) 
-                        pool.push({ teamA:rawTeams[a], teamB:rawTeams[a+1]||"BYE", division:divName, type:'ko' });
+
+                if(matchPools.length === 0) return alert("No valid teams found. Please enter at least 2 teams.");
+
+                // C. Merge (Zipper vs Block)
+                let finalMatches = [];
+                if(flow === 'block') {
+                    matchPools.forEach(p => finalMatches.push(...p));
+                } else {
+                    let maxLength = Math.max(...matchPools.map(p => p.length));
+                    for(let i=0; i<maxLength; i++) {
+                        matchPools.forEach(p => { if(p[i]) finalMatches.push(p[i]); });
+                    }
                 }
-                matchPools.push(pool);
+
+                // D. Placeholders
+                if(config.type === 'groups_final') finalMatches.push({teamA:"Winner Div 1", teamB:"Winner Div 2", division:"Final", type:'final'});
+
+                // E. DRY RUN CHECK
+                if(!confirm(`Dry Run Successful!\n\nFound ${totalTeamsFound} teams.\nGenerated ${finalMatches.length} matches.\n\nReady to upload to database?`)) return;
+
+                // F. UPLOAD
+                btn.innerText = "Uploading..."; btn.disabled = true;
+                const scheduleRef = ref(db, `tournaments/${eventId}/schedule`);
+                await set(scheduleRef, null);
+
+                let pitchTimes = Array(pitchCount).fill(9 * 60); 
+                const toTime = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+
+                const promises = finalMatches.map((m) => {
+                    let pIdx = 0;
+                    for(let p=1; p<pitchCount; p++) if(pitchTimes[p] < pitchTimes[pIdx]) pIdx = p;
+                    
+                    m.field = pIdx + 1;
+                    m.timeSlot = toTime(pitchTimes[pIdx]);
+                    m.scoreA = 0; m.scoreB = 0; m.status = 'scheduled';
+                    
+                    pitchTimes[pIdx] += slotDur;
+                    return push(scheduleRef, m);
+                });
+
+                // Reset Match Status
+                await set(ref(db, `tournaments/${eventId}/match`), { teamA:"--", teamB:"--", scoreA:0, scoreB:0, isRunning:false });
+
+                await Promise.all(promises);
+                window.location.href = `manage.html?event=${eventId}`;
+
+            } catch (err) {
+                console.error(err);
+                alert(`Error: ${err.message}`);
+                debug.innerText = err.message;
+                debug.classList.remove('hidden');
+                btn.disabled = false;
+                btn.innerText = "Try Again";
             }
-
-            // 2. MERGE LOGIC (ZIPPER vs BLOCK)
-            let finalMatches = [];
-            
-            if(flow === 'block') {
-                // Sequential: Pool A, then Pool B
-                matchPools.forEach(p => finalMatches.push(...p));
-            } else {
-                // Interwoven: A[0], B[0], A[1], B[1]
-                let maxLength = Math.max(...matchPools.map(p => p.length));
-                for(let i=0; i<maxLength; i++) {
-                    matchPools.forEach(p => { if(p[i]) finalMatches.push(p[i]); });
-                }
-            }
-
-            // 3. ADD PLACEHOLDERS (Finals etc)
-            // (Appending to end so they happen last)
-            if(config.type === 'groups_final') finalMatches.push({teamA:"Winner Div 1", teamB:"Winner Div 2", division:"Final", type:'final'});
-            // Add other placeholders as needed...
-
-            // 4. SCHEDULE (Card Dealer)
-            const scheduleRef = ref(db, `tournaments/${eventId}/schedule`);
-            await set(scheduleRef, null);
-
-            let pitchTimes = Array(pitchCount).fill(9 * 60); 
-            const toTime = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
-
-            const promises = finalMatches.map((m, i) => {
-                let pIdx = 0;
-                for(let p=1; p<pitchCount; p++) if(pitchTimes[p] < pitchTimes[pIdx]) pIdx = p;
-                
-                m.field = pIdx + 1;
-                m.timeSlot = toTime(pitchTimes[pIdx]);
-                m.scoreA = 0; m.scoreB = 0; m.status = 'scheduled';
-                
-                pitchTimes[pIdx] += slotDur;
-                return push(scheduleRef, m);
-            });
-
-            await set(ref(db, `tournaments/${eventId}/match`), { teamA:"--", teamB:"--", scoreA:0, scoreB:0, isRunning:false });
-
-            Promise.all(promises).then(() => window.location.href = `manage.html?event=${eventId}`);
         };
     </script>
 </body>
