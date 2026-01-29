@@ -3,143 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tournament Champ - Live</title>
+    <title>Live Score</title>
     <style>
-        body { margin: 0; background: #1a1a1a; color: white; font-family: -apple-system, sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        
-        /* HEADER */
-        .header { 
-            display: flex; justify-content: space-between; align-items: center; 
-            padding: 15px 30px; background: #222; border-bottom: 3px solid #333; 
-        }
-        .header-title { font-weight: bold; letter-spacing: 1px; color: #888; text-transform: uppercase;}
-        .division-badge { background: #007bff; padding: 5px 15px; border-radius: 20px; font-size: 0.9rem; font-weight: bold; }
-
-        /* MAIN SCOREBOARD */
-        .main-board { 
-            display: flex; flex: 1; align-items: center; justify-content: center; 
-            position: relative;
-        }
-        
-        .team { flex: 1; text-align: center; z-index: 2; }
-        .team-name { font-size: 4vw; font-weight: bold; margin-bottom: 10px; color: #ccc; text-transform: uppercase; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
-        .team-score { font-size: 18vw; font-weight: 800; color: #fff; line-height: 1; text-shadow: 0 0 20px rgba(255,255,255,0.1); }
-
-        /* CENTER ICON CONTAINER */
-        .center-graphic {
-            width: 15vw; height: 15vw;
-            display: flex; align-items: center; justify-content: center;
-            opacity: 0.3; /* Subtle background effect */
-            filter: grayscale(100%);
-            transition: opacity 0.5s;
-        }
-
-        /* FOOTER (TIMER) */
-        .footer { 
-            height: 22vh; background: #000; border-top: 4px solid #333; 
-            display: flex; align-items: center; justify-content: center; 
-            box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
-        }
-        .timer { font-size: 10vw; font-family: 'Courier New', monospace; font-weight: bold; color: #f1c40f; letter-spacing: -5px; }
-        .timer.paused { color: #555; animation: blink 1.5s infinite; }
-
-        @keyframes blink { 50% { opacity: 0.4; } }
-        
-        /* Error Message */
-        #errorOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 100; align-items: center; justify-content: center; text-align: center; }
+        body{background:#1a1a1a;color:white;font-family:sans-serif;height:100vh;display:flex;flex-direction:column;margin:0}
+        .main-board{flex:1;display:flex;align-items:center;justify-content:center}
+        .team{flex:1;text-align:center}.score{font-size:18vw;font-weight:bold}
+        .timer{font-size:10vw;text-align:center;color:#f1c40f;font-family:monospace;background:black;padding:20px}
     </style>
 </head>
 <body>
-
-    <div id="errorOverlay">
-        <div>
-            <h2 style="color: #dc3545;">No Event Selected</h2>
-            <p>Please return to the home page.</p>
-            <a href="index.html" style="color: white; text-decoration: underline;">Go Home</a>
-        </div>
-    </div>
-
-    <div class="header">
-        <div class="header-title">Tournament Champ</div>
-        <div id="divisionDisplay" class="division-badge">LIVE</div>
-    </div>
-
+    <div style="padding:20px;text-align:center;background:#222">TOURNAMENT CHAMP</div>
     <div class="main-board">
-        <div class="team">
-            <div id="nameA" class="team-name">HOME</div>
-            <div id="scoreA" class="team-score">0</div>
-        </div>
-        
-        <div class="center-graphic" id="sportIcon"></div>
-
-        <div class="team">
-            <div id="nameB" class="team-name">AWAY</div>
-            <div id="scoreB" class="team-score">0</div>
-        </div>
+        <div class="team"><div id="nameA">HOME</div><div id="scoreA" class="score">0</div></div>
+        <div class="team"><div id="nameB">AWAY</div><div id="scoreB" class="score">0</div></div>
     </div>
-
-    <div class="footer">
-        <div id="timer" class="timer">00:00</div>
-    </div>
+    <div id="timer" class="timer">00:00</div>
 
     <script type="module">
         import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
-        import { app } from './firebase-config.js'; // Using central config
+        import { app, db } from './firebase-config.js';
 
-        const db = getDatabase(app);
-        
-        // 1. Get Event ID
-        const params = new URLSearchParams(window.location.search);
-        const eventId = params.get('event');
+        const eventId = new URLSearchParams(window.location.search).get('event');
+        if(!eventId) document.body.innerHTML = "<h1 style='text-align:center'>No Event Selected</h1>";
 
-        if(!eventId) {
-            document.getElementById('errorOverlay').style.display = 'flex';
-        } else {
-            // 2. Connect to Specific Tournament Node
-            const matchRef = ref(db, `tournaments/${eventId}/match`);
-
-            onValue(matchRef, (snapshot) => {
-                const data = snapshot.val();
-                if (!data) return; // Wait for data
-
-                document.getElementById('nameA').innerText = data.teamA || 'Home';
-                document.getElementById('nameB').innerText = data.teamB || 'Away';
-                document.getElementById('scoreA').innerText = data.scoreA || 0;
-                document.getElementById('scoreB').innerText = data.scoreB || 0;
-                
-                if(data.division) {
-                    document.getElementById('divisionDisplay').innerText = data.division;
-                }
-
-                // Sport Icon Logic
-                const iconContainer = document.getElementById('sportIcon');
-                const sportKey = data.sport ? data.sport.toLowerCase() : 'default';
-                const icons = {
-                    lacrosse: `<svg viewBox="0 0 24 24" fill="white"><path d="M19.78 4.22c-.39-.39-1.02-.39-1.41 0L12 10.59 5.64 4.22c-.39-.39-1.02-.39-1.41 0s-.39 1.02 0 1.41L10.59 12l-6.36 6.36c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0L12 13.41l6.36 6.36c.39.39 1.02.39 1.41 0 .39-.39.39-1.02 0-1.41L13.41 12l6.36-6.36c.4-.39.4-1.03.01-1.42z"/></svg>`, 
-                    basketball: `<svg viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>`,
-                    soccer: `<svg viewBox="0 0 24 24" fill="white"><circle cx="12" cy="12" r="10"/></svg>`,
-                    default: `<svg viewBox="0 0 24 24" fill="white"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>`
-                };
-                
-                if(iconContainer.innerHTML.trim() === "") {
-                    iconContainer.innerHTML = icons[sportKey] || icons['default'];
-                }
-
-                // Timer Logic
-                const time = data.time || 0;
-                const m = Math.floor(time / 60).toString().padStart(2, '0');
-                const s = (time % 60).toString().padStart(2, '0');
-                
-                const timerEl = document.getElementById('timer');
-                timerEl.innerText = `${m}:${s}`;
-                
-                if (!data.isRunning) {
-                    timerEl.classList.add('paused');
-                } else {
-                    timerEl.classList.remove('paused');
-                }
-            });
-        }
+        onValue(ref(db, `tournaments/${eventId}/match`), (snap) => {
+            const data = snap.val();
+            if(!data) return;
+            document.getElementById('nameA').innerText = data.teamA;
+            document.getElementById('nameB').innerText = data.teamB;
+            document.getElementById('scoreA').innerText = data.scoreA;
+            document.getElementById('scoreB').innerText = data.scoreB;
+            
+            const m = Math.floor(data.time/60).toString().padStart(2,'0');
+            const s = (data.time%60).toString().padStart(2,'0');
+            document.getElementById('timer').innerText = `${m}:${s}`;
+        });
     </script>
 </body>
 </html>
