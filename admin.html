@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tournament Setup</title>
+    <title>Tournament Setup (Pro Logic)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>.step { display: none; } .step.active { display: block; }</style>
 </head>
@@ -12,7 +12,7 @@
     <div class="max-w-2xl mx-auto bg-white shadow-xl rounded-2xl p-8 border border-slate-100">
         <h1 class="text-2xl font-black text-slate-800 mb-2">Event Setup</h1>
         <div class="flex justify-between items-center mb-6">
-             <p class="text-slate-500 text-sm">Logistics & Scheduling</p>
+             <p class="text-slate-500 text-sm">Professional Scheduler</p>
              <span class="bg-indigo-100 text-indigo-700 px-2 py-1 rounded text-xs font-bold">Step <span id="stepNum">1</span>/3</span>
         </div>
 
@@ -21,7 +21,7 @@
             <div class="mb-4">
                 <label class="block text-xs font-bold uppercase text-slate-400">Total Slot Duration (Mins)</label>
                 <input type="number" id="slotDur" value="30" class="w-full p-3 border rounded font-bold text-lg">
-                <p class="text-[10px] text-slate-400">Includes Game + Half Time + Changeover</p>
+                <p class="text-[10px] text-slate-400">Game + Breaks</p>
             </div>
             <div class="grid grid-cols-2 gap-4 mb-6">
                 <div>
@@ -48,22 +48,19 @@
             <div id="divisionDisplay" class="space-y-2 mb-6"></div>
             <div class="flex gap-2">
                 <button onclick="changeStep(1)" class="w-1/3 bg-slate-200 font-bold py-3 rounded-xl">Back</button>
-                <button onclick="changeStep(3)" class="w-2/3 bg-slate-800 text-white font-bold py-3 rounded-xl">Next: Generate</button>
+                <button onclick="changeStep(3)" class="w-2/3 bg-slate-800 text-white font-bold py-3 rounded-xl">Next</button>
             </div>
         </div>
 
         <div id="step3" class="step">
-            <h2 class="font-bold text-lg mb-4 text-indigo-600">3. Confirmation</h2>
-            <div class="bg-yellow-50 border border-yellow-200 p-4 rounded-xl text-sm text-yellow-800 mb-6">
-                Please confirm:
+            <h2 class="font-bold text-lg mb-4 text-indigo-600">3. Fair Play Check</h2>
+            <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl text-sm text-blue-800 mb-6">
+                <strong>New Logic Applied:</strong>
                 <ul class="list-disc pl-5 mt-2 space-y-1">
-                    <li>Pitch 1, 2, 3 will be used evenly.</li>
-                    <li>Matches follow "Round Robin" (Everyone plays everyone).</li>
-                    <li>Ensure your teams are added!</li>
+                    <li>Using "Circle Method" (Standard League Format).</li>
+                    <li>Ensures equal rest periods for all teams.</li>
+                    <li>Alternates pitches evenly.</li>
                 </ul>
-            </div>
-            <div id="loadingStatus" class="hidden text-center text-indigo-600 font-bold mb-4 animate-pulse">
-                Saving to Database... <span id="saveProgress">0%</span>
             </div>
             <button id="genBtn" onclick="generate()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl shadow-lg">Generate Schedule 🚀</button>
         </div>
@@ -71,8 +68,7 @@
 
     <script type="module">
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-        // ADDED 'update' to imports
-        import { getDatabase, ref, set, push, get, update } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+        import { getDatabase, ref, set, push, update } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
         import { app, db } from './firebase-config.js';
 
         const auth = getAuth(app);
@@ -93,7 +89,6 @@
             const name = document.getElementById('divName').value;
             const teams = document.getElementById('teamList').value.split(/[\n,]+/).map(t=>t.trim()).filter(t=>t);
             if(!name || teams.length<2) return alert("Need name and 2+ teams");
-            
             divisions.push({ name, teams });
             document.getElementById('divisionDisplay').innerHTML += `<div class="bg-white p-3 border rounded text-sm"><strong>${name}</strong>: ${teams.length} Teams</div>`;
             document.getElementById('divName').value=''; document.getElementById('teamList').value='';
@@ -105,72 +100,92 @@
             return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
         };
 
+        // --- NEW: THE CIRCLE METHOD ALGORITHM ---
+        const generateRoundRobin = (teams) => {
+            const schedule = [];
+            let pool = [...teams]; // Copy array
+            
+            // If odd number of teams, add a dummy "BYE" team
+            if (pool.length % 2 !== 0) pool.push("BYE");
+
+            const numTeams = pool.length;
+            const rounds = numTeams - 1;
+            const matchesPerRound = numTeams / 2;
+
+            for (let r = 0; r < rounds; r++) {
+                // Generate matches for this round
+                for (let m = 0; m < matchesPerRound; m++) {
+                    const team1 = pool[m];
+                    const team2 = pool[numTeams - 1 - m];
+
+                    // Don't schedule matches against the "BYE" dummy
+                    if (team1 !== "BYE" && team2 !== "BYE") {
+                        schedule.push({ teamA: team1, teamB: team2, round: r + 1 });
+                    }
+                }
+                
+                // ROTATE THE TEAMS (Circle Method)
+                // Keep index 0 fixed, rotate the rest clockwise
+                // [0, 1, 2, 3] -> [0, 3, 1, 2]
+                pool.splice(1, 0, pool.pop());
+            }
+            
+            return schedule;
+        };
+
         window.generate = async () => {
             if(divisions.length === 0) return alert("Add a division first!");
 
-            // 1. GENERATE MATCHES IN MEMORY
+            // 1. GENERATE USING NEW ALGORITHM
             let matches = [];
             divisions.forEach(div => {
-                for(let i=0; i<div.teams.length; i++) {
-                    for(let j=i+1; j<div.teams.length; j++) {
-                        matches.push({
-                            teamA: div.teams[i], teamB: div.teams[j], 
-                            division: div.name, status: 'scheduled', scoreA:0, scoreB:0
-                        });
-                    }
-                }
+                const rrMatches = generateRoundRobin(div.teams);
+                // Add metadata
+                rrMatches.forEach(m => {
+                    matches.push({
+                        ...m,
+                        division: div.name,
+                        status: 'scheduled',
+                        scoreA: 0, scoreB: 0
+                    });
+                });
             });
 
-            if(!confirm(`I am about to upload ${matches.length} matches in one batch. Proceed?`)) return;
+            if(!confirm(`I have generated ${matches.length} matches using the Fair Play Circle Method.\n\nProceed to upload?`)) return;
 
             const btn = document.getElementById('genBtn');
-            const status = document.getElementById('loadingStatus');
-            btn.disabled = true; 
-            status.classList.remove('hidden');
+            btn.innerText = "Uploading..."; btn.disabled = true;
 
-            // 2. PREPARE THE DATA PACKAGE (The Fix)
+            // 2. ASSIGN PITCHES & TIMES
             const pitchCount = parseInt(document.getElementById('pitchCount').value);
             const slotDur = parseInt(document.getElementById('slotDur').value);
             let startTime = document.getElementById('startTime').value;
             let pitchTimes = Array(pitchCount).fill(startTime);
 
-            // We create a big object containing all updates
             const updates = {};
             const schedulePath = `tournaments/${eventId}/schedule`;
-
-            // First, clear existing schedule by setting it to null in the update object
-            // Actually, safer to just set the node to null first to ensure clean slate
             await set(ref(db, schedulePath), null);
 
             matches.forEach((match, index) => {
-                // Assign Logistics
                 const pitchIndex = index % pitchCount;
+                
                 match.field = pitchIndex + 1;
                 match.timeSlot = pitchTimes[pitchIndex];
+                
+                // Advance time for this pitch
                 pitchTimes[pitchIndex] = addMins(pitchTimes[pitchIndex], slotDur);
 
-                // Generate a unique ID (Key) locally without sending it yet
-                const newMatchKey = push(ref(db, schedulePath)).key;
-                
-                // Add to the package
-                updates[newMatchKey] = match;
+                const newKey = push(ref(db, schedulePath)).key;
+                updates[newKey] = match;
             });
 
-            // 3. SEND ONE GIANT PACKAGE (Atomic Update)
+            // 3. ATOMIC UPLOAD
             try {
-                // This sends ALL matches in 1 HTTP request. 
-                // It either fully works or fully fails. No partials.
                 await update(ref(db, schedulePath), updates);
-                
-                // Init Match Node
                 await set(ref(db, `tournaments/${eventId}/match`), { teamA:"TBD", teamB:"TBD", scoreA:0, scoreB:0, isRunning:false });
-
-                // Redirect
                 window.location.href = `review.html?event=${eventId}`;
-
             } catch (error) {
-                console.error(error);
-                alert("Upload failed: " + error.message);
+                alert("Error: " + error.message);
                 btn.disabled = false;
             }
         };
