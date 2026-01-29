@@ -6,7 +6,6 @@
     <title>Manager Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Pill Styling */
         .pill { cursor: pointer; user-select: none; transition: all 0.2s; }
         .pill:hover { transform: scale(1.02); filter: brightness(95%); }
         .pill.selected { 
@@ -24,10 +23,17 @@
     <div class="bg-slate-900 text-white p-4 sticky top-0 z-50 flex justify-between items-center shadow-lg">
         <div class="flex items-center gap-3">
             <a href="director.html" class="text-slate-400 hover:text-white">←</a>
-            <h1 class="font-bold text-lg">Event Manager</h1>
+            <h1 class="font-bold text-lg hidden md:block">Event Manager</h1>
+            <select id="pitchFilter" onchange="renderSchedule()" class="bg-slate-800 text-xs border border-slate-700 rounded px-2 py-1 text-white">
+                <option value="all">All Pitches</option>
+                <option value="1">Pitch 1</option>
+                <option value="2">Pitch 2</option>
+                <option value="3">Pitch 3</option>
+                <option value="4">Pitch 4</option>
+            </select>
         </div>
-        <div class="text-xs font-mono bg-slate-800 px-3 py-1 rounded border border-slate-700 text-yellow-500" id="swapStatus">
-            Tap a team to swap
+        <div class="text-xs font-mono bg-slate-800 px-3 py-1 rounded border border-slate-700 text-yellow-500 truncate max-w-[150px]" id="swapStatus">
+            Tap team to swap
         </div>
     </div>
 
@@ -51,7 +57,6 @@
             </div>
         </div>
 
-        <h3 class="font-bold text-slate-700 mb-2 px-1">Full Schedule</h3>
         <div id="matchGrid" class="space-y-3">
             <div class="text-center text-slate-400 py-10 animate-pulse">Loading schedule...</div>
         </div>
@@ -72,12 +77,11 @@
         if(!eventId) window.location.href = 'director.html';
         onAuthStateChanged(auth, u => { if(!u) window.location.href='director.html'; });
 
-        // --- STATE ---
+        // GLOBAL STATE
         let swapSource = null; 
+        let allMatches = []; // Store data here so we can filter locally
 
-        // --- LOAD DATA ---
-        
-        // 1. Live Score
+        // 1. Live Score Listener
         onValue(ref(db, `tournaments/${eventId}/match`), s => {
             const m = s.val();
             if(m) {
@@ -88,27 +92,39 @@
             }
         });
 
-        // 2. Schedule List
+        // 2. Schedule Listener
         onValue(ref(db, `tournaments/${eventId}/schedule`), snap => {
-            const container = document.getElementById('matchGrid');
-            container.innerHTML = '';
-            
             if(!snap.exists()) {
-                container.innerHTML = `
-                    <div class="text-center py-8 opacity-50">
-                        <p>No matches found.</p>
-                        <a href="admin.html?event=${eventId}" class="text-indigo-600 underline">Run Setup Wizard</a>
-                    </div>`;
+                document.getElementById('matchGrid').innerHTML = `<div class="text-center py-8 opacity-50"><p>No matches found.</p><a href="admin.html?event=${eventId}" class="text-indigo-600 underline">Run Setup Wizard</a></div>`;
                 return;
             }
 
-            const matches = [];
-            snap.forEach(c => matches.push({key: c.key, ...c.val()}));
+            allMatches = [];
+            snap.forEach(c => allMatches.push({key: c.key, ...c.val()}));
             
-            // Sort by Time
-            matches.sort((a,b) => (a.timeSlot + a.field).localeCompare(b.timeSlot + b.field));
+            // Sort by Time -> Pitch -> Division
+            allMatches.sort((a,b) => {
+                const timeA = a.timeSlot || '99:99';
+                const timeB = b.timeSlot || '99:99';
+                if(timeA !== timeB) return timeA.localeCompare(timeB);
+                return (a.field || 0) - (b.field || 0);
+            });
 
-            matches.forEach(m => {
+            // Initial Render
+            renderSchedule();
+        });
+
+        // 3. RENDER FUNCTION (Handles Filter & UI)
+        window.renderSchedule = () => {
+            const container = document.getElementById('matchGrid');
+            const filterVal = document.getElementById('pitchFilter').value;
+            
+            container.innerHTML = '';
+
+            allMatches.forEach(m => {
+                // FILTER LOGIC
+                if (filterVal !== 'all' && String(m.field) !== filterVal) return;
+
                 const card = document.createElement('div');
                 card.className = "bg-white border border-slate-200 rounded-lg p-3 shadow-sm relative";
                 
@@ -116,15 +132,22 @@
                 const isSelectedA = swapSource && swapSource.key === m.key && swapSource.field === 'teamA';
                 const isSelectedB = swapSource && swapSource.key === m.key && swapSource.field === 'teamB';
 
+                // Division Badge Color (Simple hash logic for consistent colors)
+                const divName = m.division || 'Unknown';
+                
                 card.innerHTML = `
                     <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-50">
-                        <div class="flex items-center gap-2">
-                            <input type="time" value="${m.timeSlot}" onchange="updateProp('${m.key}', 'timeSlot', this.value)" 
-                                class="bg-slate-100 border-none rounded px-2 py-1 text-xs font-bold text-slate-700 cursor-pointer w-24">
+                        <div class="flex flex-col gap-1">
+                            <span class="text-[10px] font-black uppercase text-slate-400 tracking-wider">${divName}</span>
                             
-                            <div class="flex items-center text-[10px] text-slate-400 font-bold uppercase bg-slate-50 px-2 py-1 rounded">
-                                P <input type="number" value="${m.field}" onchange="updateProp('${m.key}', 'field', Number(this.value))" 
-                                    class="ml-1 bg-transparent w-4 text-center text-slate-700">
+                            <div class="flex items-center gap-2">
+                                <input type="time" value="${m.timeSlot}" onchange="updateProp('${m.key}', 'timeSlot', this.value)" 
+                                    class="bg-slate-100 border-none rounded px-2 py-1 text-xs font-bold text-slate-700 cursor-pointer w-24 hover:bg-slate-200">
+                                
+                                <div class="flex items-center text-[10px] text-slate-500 font-bold uppercase bg-slate-100 px-2 py-1 rounded">
+                                    Pitch <input type="number" value="${m.field}" onchange="updateProp('${m.key}', 'field', Number(this.value))" 
+                                        class="ml-1 bg-transparent w-4 text-center text-slate-900 border-b border-slate-300 focus:outline-none">
+                                </div>
                             </div>
                         </div>
                         
@@ -155,31 +178,26 @@
                 `;
                 container.appendChild(card);
             });
-        });
 
-        // --- FUNCTIONS ---
+            if (container.innerHTML === '') {
+                 container.innerHTML = `<div class="text-center py-8 text-sm text-slate-400">No matches found for Pitch ${filterVal}</div>`;
+            }
+        };
+
+        // --- ACTIONS ---
 
         window.handleSwap = (key, field, currentTeamName) => {
             if (swapSource === null) {
-                // Select First Team
                 swapSource = { key, field, name: currentTeamName };
                 document.getElementById('swapStatus').innerText = `Selected: ${currentTeamName}`;
                 document.getElementById('swapStatus').classList.add('text-yellow-500', 'border-yellow-500');
-                // Force UI refresh by triggering a dummy read or trusting the user clicks quickly
-                // To keep it simple in Vanilla JS without re-fetching:
-                // We let the next click trigger the update or wait for user action. 
-                // But visually we want immediate feedback:
-                renderHighlights();
+                renderSchedule(); // Refresh UI to show highlight
             } else {
-                // Select Second Team (Perform Swap)
                 if (swapSource.key === key && swapSource.field === field) {
-                    // Cancel if clicked same pill
                     swapSource = null;
                     resetStatus();
-                    renderHighlights();
                     return;
                 }
-
                 const target = { key, field, name: currentTeamName };
                 
                 // Swap in DB
@@ -196,18 +214,9 @@
         };
 
         function resetStatus() {
-            document.getElementById('swapStatus').innerText = "Tap a team to swap";
+            document.getElementById('swapStatus').innerText = "Tap team to swap";
             document.getElementById('swapStatus').classList.remove('text-yellow-500', 'border-yellow-500');
-            renderHighlights();
-        }
-
-        // Quick hack to update UI classes without DB fetch
-        function renderHighlights() {
-            // Because onValue is live, we can't easily inject classes without a re-render.
-            // The simplest way to refresh the view with the new `swapSource` variable 
-            // is to trigger the onValue listener again. 
-            // We can do this by just reading the DB once, which triggers the callback.
-            get(ref(db, `tournaments/${eventId}/schedule`)); 
+            renderSchedule();
         }
 
         window.updateProp = (key, field, val) => {
@@ -217,7 +226,7 @@
         window.addMatch = () => {
             push(ref(db, `tournaments/${eventId}/schedule`), {
                 timeSlot: "09:00", field: 1, teamA: "Team A", teamB: "Team B", 
-                scoreA: 0, scoreB: 0, status: "scheduled", timeRemaining: 1200
+                division: "Unassigned", scoreA: 0, scoreB: 0, status: "scheduled", timeRemaining: 1200
             });
         };
 
@@ -228,7 +237,8 @@
             const m = snap.val();
             update(ref(db, `tournaments/${eventId}/match`), {
                 teamA: m.teamA, teamB: m.teamB, scoreA: m.scoreA, scoreB: m.scoreB,
-                time: m.timeRemaining || 1200, isRunning: false, scheduleKey: key
+                time: m.timeRemaining || 1200, isRunning: false, scheduleKey: key,
+                division: m.division || ''
             });
             update(ref(db, `tournaments/${eventId}/schedule/${key}`), { status: 'live' });
         };
