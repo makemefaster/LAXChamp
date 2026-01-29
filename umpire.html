@@ -3,181 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tournament Champ - Umpire</title>
-    <style>
-        body { font-family: -apple-system, system-ui, sans-serif; text-align: center; padding: 15px; background: #121212; color: white; user-select: none; }
-        
-        .header-info { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; color: #888; font-size: 0.9rem; }
-        .badge { background: #333; padding: 4px 10px; border-radius: 4px; }
-
-        .scoreboard { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
-        
-        .team-card { background: #1e1e1e; padding: 15px; border-radius: 12px; border: 1px solid #333; display: flex; flex-direction: column; justify-content: space-between; }
-        .team-name { font-size: 1.1rem; color: #aaa; margin-bottom: 5px; font-weight: 500; min-height: 1.4em;}
-        .score-display { font-size: 3.5rem; font-weight: bold; margin: 10px 0; display: block; }
-        
-        .controls-grid { display: flex; flex-direction: column; gap: 8px; }
-        
-        button { width: 100%; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; padding: 15px 0; transition: transform 0.1s; }
-        button:active { transform: scale(0.98); }
-
-        .btn-score { background: #28a745; color: white; }
-        .btn-score.secondary { background: #1e5c30; font-size: 0.9rem; padding: 10px 0; }
-        .btn-minus { background: #333; color: #ccc; font-size: 0.9rem; padding: 8px 0; margin-top: auto; }
-
-        .timer-box { background: #1e1e1e; padding: 20px; border-radius: 12px; border: 1px solid #333; margin-top: 20px; }
-        #timerDisplay { font-size: 4rem; font-family: 'Courier New', monospace; font-weight: bold; margin-bottom: 10px; }
-        .btn-toggle { background: #ffc107; color: black; }
-        .btn-toggle.active { background: #dc3545; color: white; }
-        
-        .period-controls { display: flex; gap: 10px; margin-top: 15px; justify-content: center; }
-        .period-btn { background: #333; color: white; width: auto; padding: 10px 20px; font-size: 0.9rem; }
-    </style>
+    <title>Umpire Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-
-    <div class="header-info">
-        <span id="sportLabel">LOADING...</span>
-        <span id="divisionLabel" class="badge">-</span>
-    </div>
-
-    <div class="scoreboard">
-        <div class="team-card">
-            <div id="nameA" class="team-name">Home</div>
-            <span id="scoreA" class="score-display">0</span>
-            <div id="controlsA" class="controls-grid"></div>
-            <button class="btn-minus" onclick="updateScore('A', -1)">- Undo</button>
+<body class="bg-orange-50 min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-sm bg-white p-8 rounded-2xl shadow-xl border border-orange-100">
+        <div class="text-center mb-6">
+            <h1 class="text-2xl font-bold text-slate-800">Umpire Access</h1>
+            <p id="eventName" class="text-orange-600 font-bold text-sm uppercase mt-1">Loading Event...</p>
         </div>
-
-        <div class="team-card">
-            <div id="nameB" class="team-name">Away</div>
-            <span id="scoreB" class="score-display">0</span>
-            <div id="controlsB" class="controls-grid"></div>
-            <button class="btn-minus" onclick="updateScore('B', -1)">- Undo</button>
+        <div class="space-y-4">
+            <input type="email" id="email" placeholder="umpire@laxchamp.com" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg">
+            <input type="password" id="password" placeholder="Password" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg">
+            <button onclick="login()" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-lg transition">Enter Field</button>
         </div>
-    </div>
-
-    <div class="timer-box">
-        <div id="timerDisplay">00:00</div>
-        <button id="toggleTimer" class="btn-toggle">START GAME</button>
-        <div class="period-controls">
-            <button class="period-btn" onclick="adjustTime(60)">+1 Min</button>
-            <button class="period-btn" onclick="adjustTime(-60)">-1 Min</button>
-        </div>
+        <p id="errorMsg" class="text-red-500 text-center text-sm mt-4 hidden"></p>
     </div>
 
     <script type="module">
-        import { getDatabase, ref, onValue, update, increment } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
-        import { app } from './firebase-config.js';
+        import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+        import { app, db } from './firebase-config.js';
 
-        const db = getDatabase(app);
-
-        // 1. Get Event ID
+        const auth = getAuth(app);
         const params = new URLSearchParams(window.location.search);
         const eventId = params.get('event');
 
-        if(!eventId) {
-            alert("Error: No Tournament Selected.");
-            window.location.href = "index.html";
+        if(eventId) {
+            onValue(ref(db, `tournaments/${eventId}/name`), (snap) => {
+                if(snap.exists()) document.getElementById('eventName').innerText = snap.val();
+                else document.getElementById('eventName').innerText = "Event Not Found";
+            });
+        } else {
+             document.getElementById('eventName').innerText = "No Event Selected";
         }
 
-        const matchRef = ref(db, `tournaments/${eventId}/match`);
-
-        let isRunning = false;
-        let currentTime = 0;
-        let timerInterval = null;
-        let currentSport = '';
-
-        // Dynamic Controls
-        const renderControls = (sport) => {
-            if (currentSport === sport) return;
-            currentSport = sport;
-            const controlsA = document.getElementById('controlsA');
-            const controlsB = document.getElementById('controlsB');
-            let html = '';
-
-            if (sport === 'basketball') {
-                html = `
-                    <button class="btn-score" onclick="updateScore('TEAM_ID', 2)">+2 Pts</button>
-                    <button class="btn-score secondary" onclick="updateScore('TEAM_ID', 3)">+3 Pts</button>
-                    <button class="btn-score secondary" onclick="updateScore('TEAM_ID', 1)">+1 FT</button>
-                `;
-            } else {
-                html = `<button class="btn-score" onclick="updateScore('TEAM_ID', 1)">GOAL</button>`;
-            }
-            controlsA.innerHTML = html.replace(/TEAM_ID/g, 'A');
-            controlsB.innerHTML = html.replace(/TEAM_ID/g, 'B');
+        window.login = () => {
+            const e = document.getElementById('email').value;
+            const p = document.getElementById('password').value;
+            signInWithEmailAndPassword(auth, e, p)
+                .then(() => window.location.href = `umpire.html?event=${eventId}`)
+                .catch(() => {
+                    document.getElementById('errorMsg').innerText = "Invalid Credentials";
+                    document.getElementById('errorMsg').classList.remove('hidden');
+                });
         };
-
-        // Data Listener
-        onValue(matchRef, (snapshot) => {
-            const data = snapshot.val();
-            if (!data) return;
-
-            document.getElementById('sportLabel').innerText = (data.sport || 'GAME').toUpperCase();
-            document.getElementById('divisionLabel').innerText = data.division || '-';
-            renderControls(data.sport);
-
-            document.getElementById('nameA').innerText = data.teamA;
-            document.getElementById('nameB').innerText = data.teamB;
-            document.getElementById('scoreA').innerText = data.scoreA;
-            document.getElementById('scoreB').innerText = data.scoreB;
-            
-            currentTime = data.time;
-            isRunning = data.isRunning;
-            updateTimerUI();
-
-            handleLocalTimer(isRunning);
-        });
-
-        // Timer Logic
-        function handleLocalTimer(active) {
-            if (timerInterval) clearInterval(timerInterval);
-            if (active) {
-                timerInterval = setInterval(() => {
-                    if (currentTime > 0) {
-                        currentTime--;
-                        updateTimerUI();
-                        // Sync to DB occasionally
-                        if (currentTime % 5 === 0 || currentTime === 0) {
-                            update(matchRef, { time: currentTime });
-                        }
-                    } else {
-                        update(matchRef, { isRunning: false });
-                    }
-                }, 1000);
-            }
-        }
-
-        function updateTimerUI() {
-            const m = Math.floor(currentTime / 60).toString().padStart(2, '0');
-            const s = (currentTime % 60).toString().padStart(2, '0');
-            document.getElementById('timerDisplay').innerText = `${m}:${s}`;
-            
-            const btn = document.getElementById('toggleTimer');
-            if (isRunning) {
-                btn.innerText = "PAUSE";
-                btn.classList.add('active');
-            } else {
-                btn.innerText = "RESUME";
-                btn.classList.remove('active');
-            }
-        }
-
-        // Actions
-        window.updateScore = (team, amount) => {
-            const updates = {};
-            updates[`score${team}`] = increment(amount);
-            update(matchRef, updates);
-        };
-
-        document.getElementById('toggleTimer').addEventListener('click', () => {
-            update(matchRef, { isRunning: !isRunning });
-        });
-
-        window.adjustTime = (seconds) => {
-            update(matchRef, { time: increment(seconds) });
-        }
     </script>
 </body>
 </html>
