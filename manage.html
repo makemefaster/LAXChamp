@@ -6,48 +6,59 @@
     <title>Manager Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        /* Pill Styling */
         .pill { cursor: pointer; user-select: none; transition: all 0.2s; }
-        .pill:hover { transform: scale(1.02); }
-        .pill.selected { background-color: #fbbf24; color: black; border-color: #f59e0b; transform: scale(1.05); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .pill:hover { transform: scale(1.02); filter: brightness(95%); }
+        .pill.selected { 
+            background-color: #fbbf24 !important; 
+            color: black !important; 
+            border-color: #f59e0b !important; 
+            transform: scale(1.05); 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+            font-weight: 900;
+        }
     </style>
 </head>
-<body class="bg-slate-100 min-h-screen pb-20">
+<body class="bg-slate-100 min-h-screen pb-24">
 
     <div class="bg-slate-900 text-white p-4 sticky top-0 z-50 flex justify-between items-center shadow-lg">
         <div class="flex items-center gap-3">
             <a href="director.html" class="text-slate-400 hover:text-white">←</a>
             <h1 class="font-bold text-lg">Event Manager</h1>
         </div>
-        <div class="text-xs font-mono bg-slate-800 px-2 py-1 rounded" id="swapStatus">Select a team to swap</div>
+        <div class="text-xs font-mono bg-slate-800 px-3 py-1 rounded border border-slate-700 text-yellow-500" id="swapStatus">
+            Tap a team to swap
+        </div>
     </div>
 
-    <div class="max-w-4xl mx-auto p-4">
+    <div class="max-w-md mx-auto p-4">
 
         <div class="bg-white rounded-xl shadow-sm border p-4 mb-6">
             <div class="flex justify-between items-center mb-2">
-                <h2 class="text-xs font-bold uppercase text-slate-400">Live Scoreboard Control</h2>
-                <button onclick="stopGame()" class="text-xs text-red-500 font-bold border border-red-100 px-2 py-1 rounded hover:bg-red-50">Reset Board</button>
+                <h2 class="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Live Scoreboard</h2>
+                <button onclick="stopGame()" class="text-[10px] text-red-500 font-bold border border-red-100 px-2 py-1 rounded hover:bg-red-50">RESET BOARD</button>
             </div>
             <div class="flex items-center justify-center gap-4 bg-slate-50 p-4 rounded border">
                 <div class="text-center w-1/3">
-                    <div id="liveHome" class="font-black text-xl truncate">--</div>
-                    <div id="liveScoreA" class="text-blue-600 font-bold text-lg">0</div>
+                    <div id="liveHome" class="font-black text-lg truncate">--</div>
+                    <div id="liveScoreA" class="text-indigo-600 font-bold text-2xl">0</div>
                 </div>
-                <div class="text-slate-300 font-black">VS</div>
+                <div class="text-slate-300 font-black text-xs">VS</div>
                 <div class="text-center w-1/3">
-                    <div id="liveAway" class="font-black text-xl truncate">--</div>
-                    <div id="liveScoreB" class="text-blue-600 font-bold text-lg">0</div>
+                    <div id="liveAway" class="font-black text-lg truncate">--</div>
+                    <div id="liveScoreB" class="text-indigo-600 font-bold text-2xl">0</div>
                 </div>
             </div>
         </div>
 
+        <h3 class="font-bold text-slate-700 mb-2 px-1">Full Schedule</h3>
         <div id="matchGrid" class="space-y-3">
-            <div class="text-center text-slate-400 py-10">Loading schedule...</div>
+            <div class="text-center text-slate-400 py-10 animate-pulse">Loading schedule...</div>
         </div>
 
-        <button onclick="addMatch()" class="fixed bottom-6 right-6 bg-indigo-600 text-white w-14 h-14 rounded-full shadow-xl text-2xl flex items-center justify-center hover:bg-indigo-500 z-50">+</button>
-
     </div>
+
+    <button onclick="addMatch()" class="fixed bottom-6 right-6 bg-indigo-600 text-white w-14 h-14 rounded-full shadow-xl text-3xl flex items-center justify-center hover:bg-indigo-500 z-50 active:scale-90 transition">+</button>
 
     <script type="module">
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
@@ -61,12 +72,12 @@
         if(!eventId) window.location.href = 'director.html';
         onAuthStateChanged(auth, u => { if(!u) window.location.href='director.html'; });
 
-        // --- SWAP LOGIC STATE ---
-        let swapSource = null; // Stores { key: 'matchId', field: 'teamA' }
+        // --- STATE ---
+        let swapSource = null; 
 
         // --- LOAD DATA ---
         
-        // 1. Live Score Listener
+        // 1. Live Score
         onValue(ref(db, `tournaments/${eventId}/match`), s => {
             const m = s.val();
             if(m) {
@@ -77,73 +88,67 @@
             }
         });
 
-   // 2. Schedule Listener
+        // 2. Schedule List
         onValue(ref(db, `tournaments/${eventId}/schedule`), snap => {
             const container = document.getElementById('matchGrid');
             container.innerHTML = '';
             
+            if(!snap.exists()) {
+                container.innerHTML = `
+                    <div class="text-center py-8 opacity-50">
+                        <p>No matches found.</p>
+                        <a href="admin.html?event=${eventId}" class="text-indigo-600 underline">Run Setup Wizard</a>
+                    </div>`;
+                return;
+            }
+
             const matches = [];
             snap.forEach(c => matches.push({key: c.key, ...c.val()}));
             
-            // --- NEW: EMPTY STATE HANDLING ---
-            if (matches.length === 0) {
-                container.innerHTML = `
-                    <div class="text-center py-12 bg-white rounded-xl border border-dashed border-slate-300">
-                        <div class="text-4xl mb-4">✨</div>
-                        <h3 class="text-slate-800 font-bold text-lg mb-2">Tournament is Empty</h3>
-                        <p class="text-slate-500 mb-6 text-sm">Set up your logistics, teams, and pitches.</p>
-                        <a href="admin.html?event=${eventId}" class="inline-block bg-indigo-600 text-white font-bold py-3 px-8 rounded-xl shadow-lg hover:bg-indigo-500 transition">
-                            🚀 Launch Setup Wizard
-                        </a>
-                    </div>
-                `;
-                return;
-            }
-            // ---------------------------------
-            
-            // Sort by Time then Field
+            // Sort by Time
             matches.sort((a,b) => (a.timeSlot + a.field).localeCompare(b.timeSlot + b.field));
 
             matches.forEach(m => {
                 const card = document.createElement('div');
                 card.className = "bg-white border border-slate-200 rounded-lg p-3 shadow-sm relative";
                 
-                // Determine styling for pills based on current Swap Selection
+                // Highlight logic
                 const isSelectedA = swapSource && swapSource.key === m.key && swapSource.field === 'teamA';
                 const isSelectedB = swapSource && swapSource.key === m.key && swapSource.field === 'teamB';
 
                 card.innerHTML = `
-                    <div class="flex justify-between items-start mb-2 pb-2 border-b border-slate-50">
-                        <div class="flex gap-2">
+                    <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-50">
+                        <div class="flex items-center gap-2">
                             <input type="time" value="${m.timeSlot}" onchange="updateProp('${m.key}', 'timeSlot', this.value)" 
-                                class="bg-slate-100 border-none rounded px-2 py-1 text-xs font-bold w-20 cursor-pointer hover:bg-slate-200">
-                            <div class="flex items-center text-xs text-slate-500">
-                                <span>Pitch</span>
-                                <input type="number" value="${m.field}" onchange="updateProp('${m.key}', 'field', Number(this.value))" 
-                                    class="ml-1 bg-slate-50 w-8 text-center border rounded">
+                                class="bg-slate-100 border-none rounded px-2 py-1 text-xs font-bold text-slate-700 cursor-pointer w-24">
+                            
+                            <div class="flex items-center text-[10px] text-slate-400 font-bold uppercase bg-slate-50 px-2 py-1 rounded">
+                                P <input type="number" value="${m.field}" onchange="updateProp('${m.key}', 'field', Number(this.value))" 
+                                    class="ml-1 bg-transparent w-4 text-center text-slate-700">
                             </div>
                         </div>
+                        
                         <div class="flex gap-2">
-                            <button onclick="goLive('${m.key}')" class="text-[10px] font-bold bg-indigo-50 text-indigo-600 px-2 py-1 rounded hover:bg-indigo-100">GO LIVE</button>
-                            <button onclick="deleteMatch('${m.key}')" class="text-slate-300 hover:text-red-500 px-1">×</button>
+                            <button onclick="goLive('${m.key}')" class="text-[10px] font-bold bg-green-50 text-green-600 px-2 py-1 rounded hover:bg-green-100 border border-green-100">GO LIVE</button>
+                            <button onclick="deleteMatch('${m.key}')" class="text-slate-300 hover:text-red-500 px-2 text-lg leading-none">×</button>
                         </div>
                     </div>
 
-                    <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
                         <div onclick="handleSwap('${m.key}', 'teamA', '${m.teamA}')" 
-                             class="pill ${isSelectedA ? 'selected' : ''} flex-1 bg-slate-100 border border-slate-200 rounded-md py-3 px-2 text-center text-sm font-bold text-slate-700 truncate">
+                             class="pill ${isSelectedA ? 'selected' : ''} flex-1 bg-slate-100 border border-slate-200 rounded py-3 px-1 text-center text-sm font-bold text-slate-700 truncate relative overflow-hidden">
                              ${m.teamA}
                         </div>
 
-                        <div class="flex flex-col items-center">
-                            <span class="text-xs text-slate-300 font-bold">VS</span>
-                            <div class="text-xs font-mono bg-slate-50 px-1 rounded border mt-1">
+                        <div class="flex flex-col items-center w-12 shrink-0">
+                            <span class="text-[10px] text-slate-300 font-bold mb-1">VS</span>
+                            <div class="text-xs font-mono bg-slate-50 px-2 py-0.5 rounded border border-slate-100 text-slate-500">
                                 ${m.scoreA}-${m.scoreB}
                             </div>
                         </div>
 
                         <div onclick="handleSwap('${m.key}', 'teamB', '${m.teamB}')" 
-                             class="pill ${isSelectedB ? 'selected' : ''} flex-1 bg-slate-100 border border-slate-200 rounded-md py-3 px-2 text-center text-sm font-bold text-slate-700 truncate">
+                             class="pill ${isSelectedB ? 'selected' : ''} flex-1 bg-slate-100 border border-slate-200 rounded py-3 px-1 text-center text-sm font-bold text-slate-700 truncate relative overflow-hidden">
                              ${m.teamB}
                         </div>
                     </div>
@@ -154,81 +159,55 @@
 
         // --- FUNCTIONS ---
 
-        // The Pill Swap Logic
         window.handleSwap = (key, field, currentTeamName) => {
             if (swapSource === null) {
-                // 1. First Click: Select the team
+                // Select First Team
                 swapSource = { key, field, name: currentTeamName };
-                document.getElementById('swapStatus').innerText = `Selected: ${currentTeamName}. Tap another to swap.`;
-                document.getElementById('swapStatus').classList.add('text-yellow-400');
-                // Force re-render to show yellow highlight
-                // (In a fuller React app this is auto, here we trigger a DB read or manual class toggle. 
-                // Simple hack: reload UI by triggering a dummy update or just re-rendering locally)
-                // For simplicity, we just updated the DOM classes in the render loop, so we wait for next cycle or trigger it.
-                // Let's just manually highlight the clicked element to avoid full re-render lag
-                renderSwapState(); 
+                document.getElementById('swapStatus').innerText = `Selected: ${currentTeamName}`;
+                document.getElementById('swapStatus').classList.add('text-yellow-500', 'border-yellow-500');
+                // Force UI refresh by triggering a dummy read or trusting the user clicks quickly
+                // To keep it simple in Vanilla JS without re-fetching:
+                // We let the next click trigger the update or wait for user action. 
+                // But visually we want immediate feedback:
+                renderHighlights();
             } else {
-                // 2. Second Click: Perform the Swap
+                // Select Second Team (Perform Swap)
                 if (swapSource.key === key && swapSource.field === field) {
-                    // Clicked same pill -> Cancel
+                    // Cancel if clicked same pill
                     swapSource = null;
-                    document.getElementById('swapStatus').innerText = "Select a team to swap";
-                    document.getElementById('swapStatus').classList.remove('text-yellow-400');
-                    renderSwapState();
+                    resetStatus();
+                    renderHighlights();
                     return;
                 }
 
                 const target = { key, field, name: currentTeamName };
                 
-                // Update DB: Set Source to Target's name, Set Target to Source's name
+                // Swap in DB
                 const updates = {};
                 updates[`tournaments/${eventId}/schedule/${swapSource.key}/${swapSource.field}`] = target.name;
                 updates[`tournaments/${eventId}/schedule/${target.key}/${target.field}`] = swapSource.name;
 
                 update(ref(db), updates).then(() => {
-                    // Reset
                     swapSource = null;
-                    document.getElementById('swapStatus').innerText = "Swap Complete";
-                    document.getElementById('swapStatus').classList.remove('text-yellow-400');
-                    setTimeout(() => document.getElementById('swapStatus').innerText = "Select a team to swap", 2000);
+                    document.getElementById('swapStatus').innerText = "Swap Complete!";
+                    setTimeout(resetStatus, 1500);
                 });
             }
         };
 
-        // Helper to visualize selection without full re-render
-        function renderSwapState() {
-            // Because onValue is fast, we can actually just let Firebase trigger the re-render. 
-            // But to make it snappy, we forced the 'selected' class in the HTML generator above.
-            // We just need to trigger the listener again or wait.
-            // Actually, since we modified a global variable `swapSource`, we need to re-run the render loop.
-            // The cleanest way in vanilla JS without modifying DB is to trigger the logic inside onValue again.
-            // We can do this by forcing a read or just updating the UI classes manually.
-            // Let's manually refresh the list using the cached snapshot logic if possible, 
-            // but simpler: Just toggle the class on the clicked element for immediate feedback.
-            // (The full implementation above inside onValue handles it if the data changes, 
-            // but since we only changed local state, we need to refresh the view).
-            // A simple trick: Just set a dummy value to DB? No.
-            // Let's just rely on the user clicking. 
-            // UPDATE: I added the logic inside `onValue` to check `swapSource`. 
-            // So we need to trigger the onValue callback. 
-            // We can do this by fetching once.
-            get(ref(db, `tournaments/${eventId}/schedule`)).then(snap => {
-                 // Rerun the render logic (it's duplicated but safe)
-                 // Actually, simpler: just reload the page? No.
-                 // Let's just let the UI lag by one click or add a visual indicator.
-                 // To make it perfect, let's just create a manual refresh function.
-                 // For now, let's assume the user will see the top bar update.
-            });
-            // Re-triggering the listener is hard without a DB change. 
-            // So, I will just force-reload the grid logic.
-            // (In production, use React/Vue. Here, we accept the slight UI delay or implement a manual render function).
-            // Actually, I'll allow the UI to update on the NEXT click. 
-            // To fix visuals immediately, let's manipulate the DOM:
-            document.querySelectorAll('.pill').forEach(el => el.classList.remove('selected'));
-            if(swapSource) {
-                // Find the pill? Hard without ID. 
-                // Let's just trust the top bar status text for this version.
-            }
+        function resetStatus() {
+            document.getElementById('swapStatus').innerText = "Tap a team to swap";
+            document.getElementById('swapStatus').classList.remove('text-yellow-500', 'border-yellow-500');
+            renderHighlights();
+        }
+
+        // Quick hack to update UI classes without DB fetch
+        function renderHighlights() {
+            // Because onValue is live, we can't easily inject classes without a re-render.
+            // The simplest way to refresh the view with the new `swapSource` variable 
+            // is to trigger the onValue listener again. 
+            // We can do this by just reading the DB once, which triggers the callback.
+            get(ref(db, `tournaments/${eventId}/schedule`)); 
         }
 
         window.updateProp = (key, field, val) => {
@@ -237,7 +216,7 @@
 
         window.addMatch = () => {
             push(ref(db, `tournaments/${eventId}/schedule`), {
-                timeSlot: "12:00", field: 1, teamA: "Team A", teamB: "Team B", 
+                timeSlot: "09:00", field: 1, teamA: "Team A", teamB: "Team B", 
                 scoreA: 0, scoreB: 0, status: "scheduled", timeRemaining: 1200
             });
         };
@@ -254,7 +233,7 @@
             update(ref(db, `tournaments/${eventId}/schedule/${key}`), { status: 'live' });
         };
 
-        window.stopGame = () => update(ref(db, `tournaments/${eventId}/match`), { isRunning: false, teamA: "Paused", teamB: "Paused" });
+        window.stopGame = () => update(ref(db, `tournaments/${eventId}/match`), { isRunning: false, teamA: "--", teamB: "--", scoreA: 0, scoreB: 0 });
     </script>
 </body>
 </html>
