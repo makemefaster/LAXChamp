@@ -14,7 +14,6 @@
         .option-card.recommended { border-color: #22c55e; background-color: #f0fdf4; }
         .option-card.tight { border-color: #f59e0b; background-color: #fffbeb; }
         .option-card.impossible { border-color: #ef4444; background-color: #fef2f2; opacity: 0.5; filter: grayscale(1); pointer-events: none; }
-        /* Custom Scrollbar */
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
@@ -36,26 +35,31 @@
 
         <div class="flex-1 overflow-y-auto p-8 custom-scroll">
 
-            <div id="step1" class="step active max-w-3xl mx-auto">
-                <h2 class="font-bold text-xl mb-6 text-indigo-600">1. Define Constraints</h2>
+            <div id="step1" class="step active max-w-4xl mx-auto">
+                <h2 class="font-bold text-xl mb-6 text-indigo-600">1. Define Your Constraints</h2>
                 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                     <div>
                         <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Total Teams</label>
-                        <input type="number" id="teamCount" value="12" class="w-full p-4 border rounded-xl font-bold text-lg bg-slate-50 focus:ring-2 ring-indigo-500 outline-none">
+                        <input type="number" id="teamCount" value="12" class="w-full p-4 border rounded-xl font-bold text-lg bg-slate-50 focus:ring-2 ring-indigo-500 outline-none transition">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Pitches Available</label>
-                        <input type="number" id="pitchCount" value="3" class="w-full p-4 border rounded-xl font-bold text-lg bg-slate-50 focus:ring-2 ring-indigo-500 outline-none">
+                        <label class="block text-xs font-bold uppercase text-indigo-500 mb-1">Divisions</label>
+                        <input type="number" id="divCountInput" value="1" min="1" class="w-full p-4 border-2 border-indigo-100 rounded-xl font-bold text-lg bg-indigo-50 text-indigo-900 focus:ring-2 ring-indigo-500 outline-none transition">
+                        <p class="text-[10px] text-slate-400 mt-1">e.g. 3 for U13, U15, U18</p>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Max Time (Hours)</label>
-                        <input type="number" id="hoursAvailable" value="4" class="w-full p-4 border rounded-xl font-bold text-lg bg-slate-50 focus:ring-2 ring-indigo-500 outline-none">
+                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Pitches</label>
+                        <input type="number" id="pitchCount" value="3" class="w-full p-4 border rounded-xl font-bold text-lg bg-slate-50 focus:ring-2 ring-indigo-500 outline-none transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Max Time (Hrs)</label>
+                        <input type="number" id="hoursAvailable" value="4" class="w-full p-4 border rounded-xl font-bold text-lg bg-slate-50 focus:ring-2 ring-indigo-500 outline-none transition">
                     </div>
                 </div>
 
                 <div class="bg-slate-50 p-6 rounded-xl border border-slate-100 mb-8">
-                    <h3 class="text-xs font-bold uppercase text-slate-400 mb-4">Schedule settings</h3>
+                    <h3 class="text-xs font-bold uppercase text-slate-400 mb-4">Game Timing</h3>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Game Mins</label>
@@ -78,11 +82,13 @@
                     <h2 class="font-bold text-xl text-indigo-600">2. Select Format</h2>
                     <button onclick="changeStep(1)" class="text-sm text-slate-400 hover:text-indigo-500 font-bold">← Edit Constraints</button>
                 </div>
-                <div id="optionsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pb-10"></div>
+                
+                <div id="optionsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-10">
+                    </div>
             </div>
 
             <div id="step3" class="step max-w-4xl mx-auto">
-                <h2 class="font-bold text-xl mb-4 text-indigo-600">3. Configure Divisions</h2>
+                <h2 class="font-bold text-xl mb-4 text-indigo-600">3. Setup Divisions</h2>
                 
                 <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-xl mb-6 flex items-center justify-between">
                     <div class="flex items-center gap-3">
@@ -95,8 +101,8 @@
                     <div class="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-indigo-100">
                         <span class="text-xs font-bold uppercase text-slate-400">Flow:</span>
                         <select id="scheduleFlow" class="text-sm font-bold text-indigo-700 bg-transparent outline-none">
-                            <option value="zipper">🔄 Interwoven</option>
-                            <option value="block">🧱 Sequential</option>
+                            <option value="zipper">🔄 Interwoven (Solar)</option>
+                            <option value="block">🧱 Sequential (Block)</option>
                         </select>
                     </div>
                 </div>
@@ -106,13 +112,110 @@
                 <button id="genBtn" onclick="generateFinal()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl text-lg shadow-lg transition transform active:scale-[0.98]">
                     Launch Tournament 🚀
                 </button>
-                <div id="debugLog" class="text-xs text-red-500 mt-2 text-center hidden"></div>
             </div>
 
         </div>
     </div>
 
-    chosenDetailsDisplay').innerText = opt.desc;
+    <script type="module">
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+        import { getDatabase, ref, set, push } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+        import { app, db } from './firebase-config.js';
+
+        const auth = getAuth(app);
+        const params = new URLSearchParams(window.location.search);
+        const eventId = params.get('event');
+        let config = {}; 
+
+        if(!eventId) window.location.href="director.html";
+        onAuthStateChanged(auth, u=>{if(!u)window.location.href="director.html"});
+
+        window.changeStep = (n) => {
+            document.querySelectorAll('.step').forEach(e => e.classList.remove('active'));
+            document.getElementById(`step${n}`).classList.add('active');
+            document.getElementById('stepNum').innerText = n;
+        };
+
+        // --- 1. CALCULATOR ---
+        window.calculateOptions = () => {
+            const N = parseInt(document.getElementById('teamCount').value) || 0;
+            const Divs = parseInt(document.getElementById('divCountInput').value) || 1;
+            const P = parseInt(document.getElementById('pitchCount').value) || 1;
+            const H = parseFloat(document.getElementById('hoursAvailable').value) || 1;
+            const slotDur = parseInt(document.getElementById('gameDur').value) + parseInt(document.getElementById('breakDur').value);
+            const limitMins = H * 60;
+
+            const grid = document.getElementById('optionsGrid');
+            grid.innerHTML = '';
+            const add = (opt) => addOptionCard(opt, N, P, slotDur, limitMins);
+
+            // --- USER PREFERENCE (CUSTOM DIVISIONS) ---
+            if (Divs > 1) {
+                // Calculate Average Teams per Division
+                const avgTeams = Math.ceil(N / Divs);
+                // Calc matches per division (League style)
+                const divMatches = (avgTeams * (avgTeams - 1)) / 2;
+                const totalCustomMatches = divMatches * Divs;
+
+                add({
+                    title: `${Divs} Separate Leagues`,
+                    icon: "🗂️",
+                    type: 'league',
+                    param: Divs,
+                    desc: `Perfect for U13, U15, Pro etc. (${avgTeams} teams each).`,
+                    matches: totalCustomMatches
+                });
+
+                add({
+                    title: `${Divs} Divisions + Finals`,
+                    icon: "⚔️",
+                    type: 'groups_final',
+                    param: Divs,
+                    desc: `Group stages, then Winners play off.`,
+                    matches: totalCustomMatches + (Divs - 1) // Approx knockout games
+                });
+            } else {
+                // STANDARD OPTIONS (Single Pool logic)
+                add({ title: "Full League", icon: "📊", type: 'league', param: 1, desc: "1 big pool. Everyone plays everyone.", matches: (N*(N-1))/2 });
+                add({ title: "Swiss System", icon: "♟️", type: 'swiss', param: 1, desc: "4 Rounds. Winners play winners.", matches: (N*4)/2 });
+                add({ title: "Knockout Cup", icon: "🥊", type: 'knockout', param: 1, desc: "Single elimination.", matches: N-1 });
+            }
+
+            // AUTO-SUGGESTIONS (Alternatives)
+            const g4Size = Math.ceil(N/4);
+            const g4Games = 4 * ((g4Size*(g4Size-1))/2);
+            add({ title: "World Cup (4 Grps)", icon: "🏆", type: 'world_cup', param: 4, desc: "4 Groups -> Semis -> Final.", matches: g4Games + 3 });
+            
+            add({ title: "Cup & Plate", icon: "🍽️", type: 'cup_plate', param: 1, desc: "Losers drop to Plate tournament.", matches: (N-1) + (N/2 - 1) });
+            add({ title: "Double Elim", icon: "🛡️", type: 'double_elim', param: 1, desc: "Must lose twice to be out.", matches: (2*N)-1 });
+
+            changeStep(2);
+        };
+
+        function addOptionCard(opt, N, P, slotDur, limit) {
+            const totalMins = Math.ceil(opt.matches / P) * slotDur;
+            const percent = Math.round((totalMins / limit) * 100);
+            const isPossible = totalMins <= limit;
+            
+            const div = document.createElement('div');
+            div.className = `option-card bg-white p-4 rounded-xl border shadow-sm relative cursor-pointer flex flex-col justify-between h-48 ${isPossible ? 'recommended' : 'impossible'}`;
+            div.onclick = () => { if(isPossible) selectFormat(opt); };
+            div.innerHTML = `
+                <div>
+                    <div class="flex justify-between items-start mb-2"><div class="text-3xl">${opt.icon}</div><div class="text-right"><span class="block text-lg font-black ${isPossible?'':'text-red-400'}">${Math.floor(totalMins/60)}h ${totalMins%60}m</span></div></div>
+                    <h3 class="font-bold text-md leading-tight">${opt.title}</h3>
+                    <p class="text-xs text-slate-500 mt-1 leading-snug">${opt.desc}</p>
+                </div>
+                <div class="mt-2"><div class="w-full bg-slate-100 rounded-full h-1.5 mb-2 overflow-hidden"><div class="h-full ${isPossible?'bg-green-500':'bg-red-500'}" style="width:${Math.min(percent,100)}%"></div></div><div class="flex justify-between text-[10px] uppercase font-bold text-slate-400"><span>${opt.matches} Games</span><span>${percent}% Cap</span></div></div>
+            `;
+            document.getElementById('optionsGrid').appendChild(div);
+        }
+
+        // --- 2. DYNAMIC INPUTS ---
+        window.selectFormat = (opt) => {
+            config = opt;
+            document.getElementById('chosenFormatDisplay').innerText = opt.title;
+            document.getElementById('chosenDetailsDisplay').innerText = opt.desc;
             document.getElementById('chosenIcon').innerText = opt.icon;
             
             const container = document.getElementById('divisionInputs');
@@ -120,7 +223,7 @@
             const count = opt.param || 1;
             
             for(let i=0; i<count; i++) {
-                const defaultName = (count === 1) ? "League Division" : (i === 0 ? "Pro League" : (i === 1 ? "U15s" : `Group ${String.fromCharCode(65+i)}`));
+                const defaultName = (count === 1) ? "League Division" : (i === 0 ? "Pro League" : (i === 1 ? "U15s" : `Division ${i+1}`));
                 const box = document.createElement('div');
                 box.className = "bg-slate-50 border p-4 rounded-xl";
                 box.innerHTML = `
@@ -134,42 +237,31 @@
             changeStep(3);
         };
 
-        // --- 3. SAFETY-FIRST GENERATOR ---
+        // --- 3. CONFLICT-AWARE ENGINE ---
         window.generateFinal = async () => {
             const btn = document.getElementById('genBtn');
-            const debug = document.getElementById('debugLog');
-            
+            btn.innerText = "Processing..."; btn.disabled = true;
+
             try {
-                // A. Validate Inputs
                 const slotDur = parseInt(document.getElementById('gameDur').value) + parseInt(document.getElementById('breakDur').value);
                 const pitchCount = parseInt(document.getElementById('pitchCount').value);
                 const flow = document.getElementById('scheduleFlow').value;
                 const divCount = config.param || 1;
                 let matchPools = [];
-                let totalTeamsFound = 0;
 
-                // B. Loop through Boxes
+                // A. Harvest Teams
                 for(let i=0; i<divCount; i++) {
-                    const nameEl = document.getElementById(`divName_${i}`);
-                    const teamEl = document.getElementById(`divTeams_${i}`);
-                    
-                    if(!nameEl || !teamEl) throw new Error(`Input Box ${i+1} missing.`);
-                    
-                    const divName = nameEl.value;
-                    const rawTeams = teamEl.value.split(/[\n,]+/).map(t=>t.trim()).filter(t=>t);
+                    const divName = document.getElementById(`divName_${i}`).value;
+                    const rawTeams = document.getElementById(`divTeams_${i}`).value.split(/[\n,]+/).map(t=>t.trim()).filter(t=>t);
                     
                     if(rawTeams.length > 1) {
-                        totalTeamsFound += rawTeams.length;
                         let pool = [];
-
-                        // LOGIC: ROUND ROBIN
+                        // Logic based on type
                         if (['league', 'groups_final', 'world_cup', 'waterfall'].includes(config.type)) {
                             for(let a=0; a<rawTeams.length; a++) 
                                 for(let b=a+1; b<rawTeams.length; b++) 
                                     pool.push({ teamA:rawTeams[a], teamB:rawTeams[b], division:divName, type:'group' });
-                        }
-                        // LOGIC: PAIRINGS
-                        else {
+                        } else {
                             for(let a=0; a<rawTeams.length; a+=2) 
                                 pool.push({ teamA:rawTeams[a], teamB:rawTeams[a+1]||"BYE", division:divName, type:'ko' });
                         }
@@ -177,9 +269,9 @@
                     }
                 }
 
-                if(matchPools.length === 0) return alert("No valid teams found. Please enter at least 2 teams.");
+                if(matchPools.length === 0) throw new Error("Please enter teams.");
 
-                // C. Merge (Zipper vs Block)
+                // B. Zipper Merge
                 let finalMatches = [];
                 if(flow === 'block') {
                     matchPools.forEach(p => finalMatches.push(...p));
@@ -189,48 +281,55 @@
                         matchPools.forEach(p => { if(p[i]) finalMatches.push(p[i]); });
                     }
                 }
-
-                // D. Placeholders
+                
+                // Add Finals if needed
                 if(config.type === 'groups_final') finalMatches.push({teamA:"Winner Div 1", teamB:"Winner Div 2", division:"Final", type:'final'});
 
-                // E. DRY RUN CHECK
-                if(!confirm(`Dry Run Successful!\n\nFound ${totalTeamsFound} teams.\nGenerated ${finalMatches.length} matches.\n\nReady to upload to database?`)) return;
-
-                // F. UPLOAD
-                btn.innerText = "Uploading..."; btn.disabled = true;
+                // C. PHYSICS SCHEDULER (Anti-Conflict)
                 const scheduleRef = ref(db, `tournaments/${eventId}/schedule`);
                 await set(scheduleRef, null);
 
-                let pitchTimes = Array(pitchCount).fill(9 * 60); 
+                let pitchAvail = Array(pitchCount).fill(0); 
+                let teamAvail = {}; // Tracks when a team is free
+                const START = 9 * 60; 
                 const toTime = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
 
-                const promises = finalMatches.map((m) => {
-                    let pIdx = 0;
-                    for(let p=1; p<pitchCount; p++) if(pitchTimes[p] < pitchTimes[pIdx]) pIdx = p;
-                    
-                    m.field = pIdx + 1;
-                    m.timeSlot = toTime(pitchTimes[pIdx]);
+                const promises = finalMatches.map(m => {
+                    const tA = teamAvail[m.teamA] || 0;
+                    const tB = teamAvail[m.teamB] || 0;
+                    const ready = Math.max(tA, tB); // Earliest both are free
+
+                    // Find pitch earliest available AFTER 'ready'
+                    let bestP = -1; 
+                    let bestT = Infinity;
+
+                    for(let p=0; p<pitchCount; p++) {
+                        let possibleStart = Math.max(pitchAvail[p], ready);
+                        if(possibleStart < bestT) { bestT = possibleStart; bestP = p; }
+                    }
+
+                    m.field = bestP + 1;
+                    m.timeSlot = toTime(START + bestT);
                     m.scoreA = 0; m.scoreB = 0; m.status = 'scheduled';
-                    
-                    pitchTimes[pIdx] += slotDur;
+
+                    // Update Locks
+                    const finish = bestT + slotDur;
+                    pitchAvail[bestP] = finish;
+                    teamAvail[m.teamA] = finish;
+                    teamAvail[m.teamB] = finish;
+
                     return push(scheduleRef, m);
                 });
 
-                // Reset Match Status
                 await set(ref(db, `tournaments/${eventId}/match`), { teamA:"--", teamB:"--", scoreA:0, scoreB:0, isRunning:false });
-
                 await Promise.all(promises);
                 window.location.href = `manage.html?event=${eventId}`;
 
-            } catch (err) {
-                console.error(err);
-                alert(`Error: ${err.message}`);
-                debug.innerText = err.message;
-                debug.classList.remove('hidden');
+            } catch (e) {
+                alert(e.message);
                 btn.disabled = false;
-                btn.innerText = "Try Again";
             }
         };
-                    </script>
+    </script>
 </body>
 </html>
