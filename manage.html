@@ -17,19 +17,28 @@
         </div>
         <div class="flex gap-2">
             <a href="#" id="publicLink" target="_blank" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded text-sm font-bold">Public Page</a>
-            <button onclick="showUmpireModal()" class="bg-orange-600 hover:bg-orange-500 px-3 py-1.5 rounded text-sm font-bold">Invite Umpires</button>
+            <button onclick="showUmpireModal()" class="bg-orange-600 hover:bg-orange-500 px-3 py-1.5 rounded text-sm font-bold">Umpire Settings</button>
         </div>
     </div>
 
     <div id="umpireModal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-xl p-6 max-w-md w-full text-slate-800">
             <h2 class="text-xl font-bold mb-4">Umpire Access</h2>
-            <div class="bg-slate-100 p-4 rounded mb-4 font-mono text-sm">
-                <div class="mb-2"><span class="font-bold text-slate-500">Link:</span> <span id="umpireLinkDisplay" class="text-blue-600 break-all">...</span></div>
-                <div class="mb-2"><span class="font-bold text-slate-500">Email:</span> umpire@laxchamp.com</div>
-                <div><span class="font-bold text-slate-500">Password:</span> whistle</div>
+            <p class="text-xs text-slate-500 mb-4">Set the login details for your referees.</p>
+            
+            <div class="space-y-3 mb-6">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase">Umpire Username</label>
+                    <input type="text" id="umpUser" class="w-full p-2 border rounded bg-slate-50 font-mono text-sm" placeholder="e.g. ref">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase">Umpire Password</label>
+                    <input type="text" id="umpPass" class="w-full p-2 border rounded bg-slate-50 font-mono text-sm" placeholder="e.g. whistle">
+                </div>
             </div>
-            <button onclick="copyUmpireInfo()" class="w-full bg-orange-600 text-white font-bold py-3 rounded mb-2">Copy to Clipboard</button>
+            
+            <button onclick="saveUmpireCreds()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded mb-2">Save Credentials</button>
+            <button onclick="copyUmpireInfo()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-3 rounded mb-2">Copy Invite for Refs</button>
             <button onclick="document.getElementById('umpireModal').classList.add('hidden')" class="w-full text-slate-400 text-sm">Close</button>
         </div>
     </div>
@@ -87,7 +96,6 @@
                 </table>
             </div>
         </div>
-
     </div>
 
     <script type="module">
@@ -106,14 +114,20 @@
             
             const baseUrl = window.location.origin + window.location.pathname.replace('manage.html', '');
             document.getElementById('publicLink').href = `${baseUrl}index.html?event=${eventId}`;
-            document.getElementById('umpireLinkDisplay').innerText = `${baseUrl}umpire-login.html?event=${eventId}`;
-
+            
             onValue(ref(db, `tournaments/${eventId}/name`), s => {
                 document.getElementById('eventName').innerText = s.val() || "Event Manager";
             });
+
+            // Load Existing Umpire Creds
+            onValue(ref(db, `tournaments/${eventId}/settings/umpire`), s => {
+                const creds = s.val() || { user: 'ref', pass: 'whistle' };
+                document.getElementById('umpUser').value = creds.user;
+                document.getElementById('umpPass').value = creds.pass;
+            });
         });
 
-        // Load Data
+        // Load Schedule & Live Match
         onValue(ref(db, `tournaments/${eventId}/match`), s => {
             const m = s.val();
             if(m) {
@@ -153,20 +167,13 @@
         });
 
         window.updateMatch = (key, field, val) => update(ref(db, `tournaments/${eventId}/schedule/${key}`), { [field]: val });
-        window.addMatch = () => {
-            push(ref(db, `tournaments/${eventId}/schedule`), {
-                timeSlot: "12:00", field: 1, teamA: "Team A", teamB: "Team B", scoreA: 0, scoreB: 0, status: "scheduled"
-            });
-        };
+        window.addMatch = () => { push(ref(db, `tournaments/${eventId}/schedule`), { timeSlot: "12:00", field: 1, teamA: "Team A", teamB: "Team B", scoreA: 0, scoreB: 0, status: "scheduled" }); };
         window.deleteMatch = (key) => { if(confirm("Delete?")) set(ref(db, `tournaments/${eventId}/schedule/${key}`), null); };
         window.goLive = async (key) => {
             const snap = await get(ref(db, `tournaments/${eventId}/schedule/${key}`));
             const m = snap.val();
             if(m) {
-                update(ref(db, `tournaments/${eventId}/match`), {
-                    teamA: m.teamA, teamB: m.teamB, scoreA: m.scoreA, scoreB: m.scoreB,
-                    time: 1200, isRunning: false, scheduleKey: key
-                });
+                update(ref(db, `tournaments/${eventId}/match`), { teamA: m.teamA, teamB: m.teamB, scoreA: m.scoreA, scoreB: m.scoreB, time: 1200, isRunning: false, scheduleKey: key });
                 update(ref(db, `tournaments/${eventId}/schedule/${key}`), { status: 'live' });
             }
         };
@@ -179,23 +186,33 @@
             const reader = new FileReader();
             reader.readAsDataURL(file);
             reader.onload = (e) => {
-                const img = new Image();
-                img.src = e.target.result;
+                const img = new Image(); img.src = e.target.result;
                 img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = 800; canvas.height = img.height*(800/img.width);
+                    const canvas = document.createElement('canvas'); canvas.width = 800; canvas.height = img.height*(800/img.width);
                     canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
-                    set(ref(db, `tournaments/${eventId}/venue/mapImage`), canvas.toDataURL('image/jpeg', 0.7))
-                        .then(() => btn.innerText = "Done!");
+                    set(ref(db, `tournaments/${eventId}/venue/mapImage`), canvas.toDataURL('image/jpeg', 0.7)).then(() => btn.innerText = "Done!");
                 };
             };
         };
+        
         window.showUmpireModal = () => document.getElementById('umpireModal').classList.remove('hidden');
+        
+        // SAVE CREDENTIALS TO DB
+        window.saveUmpireCreds = () => {
+            const user = document.getElementById('umpUser').value;
+            const pass = document.getElementById('umpPass').value;
+            if(!user || !pass) return alert("Enter both username and password");
+            set(ref(db, `tournaments/${eventId}/settings/umpire`), { user, pass })
+                .then(() => alert("Saved! Umpires can now use these details."));
+        };
+
         window.copyUmpireInfo = () => {
-            const link = document.getElementById('umpireLinkDisplay').innerText;
-            const text = `Umpire Login:\nLink: ${link}\nEmail: umpire@laxchamp.com\nPass: whistle`;
+            const user = document.getElementById('umpUser').value;
+            const pass = document.getElementById('umpPass').value;
+            const link = `${window.location.origin}${window.location.pathname.replace('manage.html', '')}umpire-login.html?event=${eventId}`;
+            const text = `Official Umpire Access:\nLink: ${link}\nUsername: ${user}\nPassword: ${pass}`;
             navigator.clipboard.writeText(text);
-            alert("Copied!");
+            alert("Invitation copied to clipboard!");
         };
     </script>
 </body>
