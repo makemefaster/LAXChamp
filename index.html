@@ -56,148 +56,35 @@
         const params = new URLSearchParams(window.location.search);
         const eventId = params.get('event');
 
-        if(!eventId) document.body.innerHTML = "<div class='p-10 text-center'>No Event Selected</div>";
+        if(!eventId) {
+            document.body.innerHTML = "<div class='p-10 text-center'>No Event Selected</div>";
+        } else {
+            // Listener for matches
+            onValue(ref(db, `tournaments/${eventId}/schedule`), (snap) => {
+                const container = document.getElementById('view-matches');
+                container.innerHTML = ''; // Clear previous matches
 
-        // 1. LIVE ALERT LISTENER
-        onValue(ref(db, `tournaments/${eventId}/alert`), snap => {
-            const banner = document.getElementById('alertBanner');
-            const text = document.getElementById('alertText');
-            const icon = document.getElementById('alertIcon');
-            const val = snap.val();
-
-            if (val && val.message) {
-                text.innerText = val.message;
-                banner.classList.remove('hidden');
-                banner.className = "fixed top-0 left-0 right-0 z-50 p-4 shadow-xl transform transition-transform duration-300 translate-y-0 text-white";
-                
-                if(val.type === 'danger') {
-                    banner.classList.add('bg-red-600');
-                    icon.innerText = "🛑";
-                } else if (val.type === 'warn') {
-                    banner.classList.add('bg-yellow-500', 'text-black');
-                    icon.innerText = "⚠️";
-                } else {
-                    banner.classList.add('bg-blue-600');
-                    icon.innerText = "ℹ️";
+                if (!snap.exists()) {
+                    container.innerHTML = "<div>No matches available</div>";
+                    return;
                 }
-            } else {
-                banner.classList.add('hidden');
-            }
-        });
 
-        // 2. Setup Links & Titles
-        onValue(ref(db, `tournaments/${eventId}/name`), s => {
-            if(s.exists()) document.getElementById('eventTitle').innerText = s.val();
-        });
-        document.getElementById('umpireLink').href = `umpire-login.html?event=${eventId}`;
-
-        // 3. Load Data
-        onValue(ref(db, `tournaments/${eventId}/schedule`), snap => {
-            if(!snap.exists()) return;
-            const matches = [];
-            snap.forEach(c => matches.push(c.val()));
-            renderMatches(matches);
-            renderStandings(matches);
-        });
-
-        function renderMatches(matches) {
-            const container = document.getElementById('view-matches');
-            container.innerHTML = '';
-            matches.sort((a,b) => (a.timeSlot + a.field).localeCompare(b.timeSlot + b.field));
-
-            matches.forEach(m => {
-                const isLive = m.status === 'live';
-                const isDone = m.status === 'finished' || (m.scoreA + m.scoreB > 0 && m.status !== 'scheduled');
-                
-                const card = document.createElement('div');
-                card.className = `bg-white border rounded-lg p-3 shadow-sm flex items-center justify-between ${isLive ? 'border-green-500 ring-1 ring-green-500' : 'border-slate-200'}`;
-                
-                card.innerHTML = `
-                    <div class="w-16 text-center border-r border-slate-100 pr-3">
-                        <div class="font-bold text-slate-800 text-sm">${m.timeSlot}</div>
-                        <div class="text-[10px] uppercase font-bold text-slate-400">Pitch ${m.field}</div>
-                    </div>
-                    <div class="flex-1 px-4">
-                        <div class="flex justify-between items-center mb-1">
-                            <span class="font-bold text-slate-700 ${m.scoreA > m.scoreB && isDone ? 'text-black' : ''}">${m.teamA}</span>
-                            <span class="font-mono font-bold ${isLive ? 'text-green-600' : 'text-slate-800'}">${m.scoreA}</span>
+                snap.forEach(match => {
+                    const matchData = match.val();
+                    const div = document.createElement('div');
+                    div.className = "bg-white border border-slate-200 rounded-lg p-3 shadow-sm";
+                    div.innerHTML = `
+                        <div class='flex justify-between items-center mb-2'>
+                            <span class='text-sm font-bold text-indigo-500'>${matchData.timeSlot || 'TBD'} - Pitch ${matchData.field || 'N/A'}</span>
+                            <span class='text-xs text-slate-400'>${matchData.division || 'Division'}</span>
                         </div>
-                        <div class="flex justify-between items-center">
-                            <span class="font-bold text-slate-700 ${m.scoreB > m.scoreA && isDone ? 'text-black' : ''}">${m.teamB}</span>
-                            <span class="font-mono font-bold ${isLive ? 'text-green-600' : 'text-slate-800'}">${m.scoreB}</span>
-                        </div>
-                    </div>
-                    ${isLive ? '<div class="absolute top-0 right-0 -mt-1 -mr-1"><span class="animate-pulse flex h-3 w-3 rounded-full bg-green-500"></span></div>' : ''}
-                `;
-                container.appendChild(card);
-            });
-        }
-
-        function renderStandings(matches) {
-            const container = document.getElementById('view-standings');
-            container.innerHTML = '';
-
-            const divisions = {};
-            matches.forEach(m => {
-                if(!divisions[m.division]) divisions[m.division] = {};
-                if(!divisions[m.division][m.teamA]) divisions[m.division][m.teamA] = { name: m.teamA, P:0, W:0, D:0, L:0, GF:0, GA:0, Pts:0 };
-                if(!divisions[m.division][m.teamB]) divisions[m.division][m.teamB] = { name: m.teamB, P:0, W:0, D:0, L:0, GF:0, GA:0, Pts:0 };
-
-                if(m.status === 'finished' || m.status === 'live' || (m.scoreA + m.scoreB > 0)) {
-                    const statsA = divisions[m.division][m.teamA];
-                    const statsB = divisions[m.division][m.teamB];
-
-                    statsA.P++; statsB.P++;
-                    statsA.GF += m.scoreA; statsA.GA += m.scoreB;
-                    statsB.GF += m.scoreB; statsB.GA += m.scoreA;
-
-                    if(m.scoreA > m.scoreB) { statsA.W++; statsA.Pts += 3; statsB.L++; }
-                    else if (m.scoreB > m.scoreA) { statsB.W++; statsB.Pts += 3; statsA.L++; }
-                    else { statsA.D++; statsA.Pts += 1; statsB.D++; statsB.Pts += 1; }
-                }
-            });
-
-            Object.keys(divisions).forEach(divName => {
-                const teams = Object.values(divisions[divName]);
-                teams.sort((a,b) => {
-                    if(b.Pts !== a.Pts) return b.Pts - a.Pts;
-                    const gdA = a.GF - a.GA; const gdB = b.GF - b.GA;
-                    if(gdB !== gdA) return gdB - gdA;
-                    return b.GF - a.GF;
+                        <div class='text-center font-semibold'>${matchData.teamA || 'Team A'} vs ${matchData.teamB || 'Team B'}</div>
+                    `;
+                    container.appendChild(div);
                 });
-
-                const tableWrapper = document.createElement('div');
-                tableWrapper.className = "bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm";
-                tableWrapper.innerHTML = `
-                    <div class="bg-slate-100 p-3 border-b border-slate-200 font-bold text-slate-700 flex justify-between"><span>${divName}</span></div>
-                    <table class="w-full text-sm text-left">
-                        <thead class="text-xs text-slate-400 uppercase bg-white border-b">
-                            <tr><th class="px-3 py-2 w-10">#</th><th class="px-3 py-2">Team</th><th class="px-3 py-2 text-center">P</th><th class="px-3 py-2 text-center">GD</th><th class="px-3 py-2 text-center font-bold">Pts</th></tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            ${teams.map((t, idx) => `
-                                <tr class="${idx < 2 ? 'bg-indigo-50/30' : ''}">
-                                    <td class="px-3 py-3 font-mono text-xs text-slate-400">${idx+1}</td>
-                                    <td class="px-3 py-3 font-bold text-slate-700">${t.name}</td>
-                                    <td class="px-3 py-3 text-center text-slate-500">${t.P}</td>
-                                    <td class="px-3 py-3 text-center text-slate-500">${t.GF - t.GA}</td>
-                                    <td class="px-3 py-3 text-center font-black text-indigo-700">${t.Pts}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                `;
-                container.appendChild(tableWrapper);
             });
         }
-
-        window.switchTab = (tab) => {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(`tab-${tab}`).classList.add('active');
-            document.getElementById('view-matches').classList.add('hidden');
-            document.getElementById('view-standings').classList.add('hidden');
-            document.getElementById(`view-${tab}`).classList.remove('hidden');
-        };
     </script>
+
 </body>
 </html>
