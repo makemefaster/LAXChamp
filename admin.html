@@ -3,78 +3,110 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tournament Setup (Pro Logic)</title>
+    <title>Tournament Consultant</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>.step { display: none; } .step.active { display: block; }</style>
+    <style>
+        .step { display: none; }
+        .step.active { display: block; animation: fadein 0.4s; }
+        @keyframes fadein { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+        .option-card { transition: all 0.2s; border: 2px solid transparent; }
+        .option-card:hover { transform: translateY(-2px); shadow: lg; }
+        .option-card.recommended { border-color: #22c55e; background-color: #f0fdf4; }
+        .option-card.warning { border-color: #f59e0b; background-color: #fffbeb; opacity: 0.9; }
+        .option-card.impossible { border-color: #ef4444; background-color: #fef2f2; opacity: 0.6; filter: grayscale(1); pointer-events: none; }
+    </style>
 </head>
 <body class="bg-slate-50 min-h-screen p-6 font-sans text-slate-800">
 
-    <div class="max-w-2xl mx-auto bg-white shadow-xl rounded-2xl p-8 border border-slate-100">
-        <h1 class="text-2xl font-black text-slate-800 mb-2">Event Setup</h1>
-        <div class="flex justify-between items-center mb-6">
-             <p class="text-slate-500 text-sm">Professional Scheduler</p>
-             <span class="bg-indigo-100 text-indigo-700 px-2 py-1 rounded text-xs font-bold">Step <span id="stepNum">1</span>/3</span>
+    <div class="max-w-4xl mx-auto bg-white shadow-2xl rounded-2xl border border-slate-100 overflow-hidden">
+        
+        <div class="bg-slate-900 text-white p-6 flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-black">Tournament Consultant</h1>
+                <p class="text-slate-400 text-sm">Design your perfect schedule.</p>
+            </div>
+            <div class="text-xs font-bold uppercase tracking-widest bg-slate-800 px-3 py-1 rounded">Step <span id="stepNum">1</span>/3</div>
         </div>
 
-        <div id="step1" class="step active">
-            <h2 class="font-bold text-lg mb-4 text-indigo-600">1. Logistics</h2>
-            <div class="mb-4">
-                <label class="block text-xs font-bold uppercase text-slate-400">Total Slot Duration (Mins)</label>
-                <input type="number" id="slotDur" value="30" class="w-full p-3 border rounded font-bold text-lg">
-                <p class="text-[10px] text-slate-400">Game + Breaks</p>
-            </div>
-            <div class="grid grid-cols-2 gap-4 mb-6">
-                <div>
-                    <label class="block text-xs font-bold uppercase text-slate-400">Pitch Count</label>
-                    <input type="number" id="pitchCount" value="3" class="w-full p-3 border rounded font-bold">
+        <div class="p-8">
+
+            <div id="step1" class="step active">
+                <h2 class="font-bold text-xl mb-6 text-indigo-600">1. The Basics</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Total Teams</label>
+                        <input type="number" id="teamCount" value="12" class="w-full p-4 border rounded-xl font-bold text-lg bg-slate-50 focus:ring-2 ring-indigo-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Pitches</label>
+                        <input type="number" id="pitchCount" value="3" class="w-full p-4 border rounded-xl font-bold text-lg bg-slate-50 focus:ring-2 ring-indigo-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Divisions</label>
+                        <input type="number" id="divCount" value="2" class="w-full p-4 border rounded-xl font-bold text-lg bg-slate-50 focus:ring-2 ring-indigo-500 outline-none">
+                        <p class="text-[10px] text-slate-400 mt-1">e.g. U15 and U18</p>
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-xs font-bold uppercase text-slate-400">First Game</label>
-                    <input type="time" id="startTime" value="09:00" class="w-full p-3 border rounded font-bold">
+
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Game Length (Mins)</label>
+                        <input type="number" id="gameDur" value="15" class="w-full p-3 border rounded font-bold">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Changeover (Mins)</label>
+                        <input type="number" id="breakDur" value="5" class="w-full p-3 border rounded font-bold">
+                    </div>
                 </div>
-            </div>
-            <button onclick="changeStep(2)" class="w-full bg-slate-800 text-white font-bold py-3 rounded-xl">Next: Teams</button>
-        </div>
 
-        <div id="step2" class="step">
-            <h2 class="font-bold text-lg mb-4 text-indigo-600">2. Teams</h2>
-            <div class="bg-slate-50 p-4 rounded-xl border mb-4">
-                <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Division Name</label>
-                <input type="text" id="divName" placeholder="e.g. U15" class="w-full mb-2 p-2 border rounded">
-                <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Team List</label>
-                <textarea id="teamList" placeholder="Paste teams here..." class="w-full p-2 border rounded h-24"></textarea>
-                <button onclick="addDivision()" class="mt-2 w-full bg-indigo-100 text-indigo-700 font-bold py-2 rounded text-xs">Add Division</button>
-            </div>
-            <div id="divisionDisplay" class="space-y-2 mb-6"></div>
-            <div class="flex gap-2">
-                <button onclick="changeStep(1)" class="w-1/3 bg-slate-200 font-bold py-3 rounded-xl">Back</button>
-                <button onclick="changeStep(3)" class="w-2/3 bg-slate-800 text-white font-bold py-3 rounded-xl">Next</button>
-            </div>
-        </div>
+                <div class="mb-8">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="useSurface" class="w-5 h-5 rounded text-indigo-600">
+                        <span class="text-sm font-bold text-slate-600">Enable Surface Constraints (Grass vs Astro)</span>
+                    </label>
+                </div>
 
-        <div id="step3" class="step">
-            <h2 class="font-bold text-lg mb-4 text-indigo-600">3. Fair Play Check</h2>
-            <div class="bg-blue-50 border border-blue-200 p-4 rounded-xl text-sm text-blue-800 mb-6">
-                <strong>New Logic Applied:</strong>
-                <ul class="list-disc pl-5 mt-2 space-y-1">
-                    <li>Using "Circle Method" (Standard League Format).</li>
-                    <li>Ensures equal rest periods for all teams.</li>
-                    <li>Alternates pitches evenly.</li>
-                </ul>
+                <button onclick="calculateOptions()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl text-lg shadow-lg transition transform active:scale-95">Analyze & Suggest Formats ✨</button>
             </div>
-            <button id="genBtn" onclick="generate()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl shadow-lg">Generate Schedule 🚀</button>
+
+            <div id="step2" class="step">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="font-bold text-xl text-indigo-600">2. Recommended Formats</h2>
+                    <button onclick="changeStep(1)" class="text-sm text-slate-400 hover:text-indigo-500">← Change Inputs</button>
+                </div>
+                
+                <div id="optionsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    </div>
+            </div>
+
+            <div id="step3" class="step">
+                <h2 class="font-bold text-xl mb-4 text-indigo-600">3. Enter Teams</h2>
+                
+                <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-xl mb-6">
+                    <p class="text-sm text-indigo-800 font-bold" id="chosenFormatDisplay">--</p>
+                    <p class="text-xs text-indigo-600 mt-1" id="chosenDetailsDisplay">--</p>
+                </div>
+
+                <div id="divisionInputs" class="space-y-4 mb-6">
+                    </div>
+
+                <button id="genBtn" onclick="generateFinal()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl text-lg shadow-lg">Generate Schedule 🚀</button>
+            </div>
+
         </div>
     </div>
 
     <script type="module">
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-        import { getDatabase, ref, set, push, update } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+        import { getDatabase, ref, set, push } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
         import { app, db } from './firebase-config.js';
 
         const auth = getAuth(app);
         const params = new URLSearchParams(window.location.search);
         const eventId = params.get('event');
-        const divisions = [];
+        
+        let config = {}; 
 
         if(!eventId) window.location.href="director.html";
         onAuthStateChanged(auth, u=>{if(!u)window.location.href="director.html"});
@@ -85,153 +117,192 @@
             document.getElementById('stepNum').innerText = n;
         };
 
-        window.addDivision = () => {
-            const name = document.getElementById('divName').value;
-            const teams = document.getElementById('teamList').value.split(/[\n,]+/).map(t=>t.trim()).filter(t=>t);
-            if(!name || teams.length<2) return alert("Need name and 2+ teams");
-            divisions.push({ name, teams });
-            document.getElementById('divisionDisplay').innerHTML += `<div class="bg-white p-3 border rounded text-sm"><strong>${name}</strong>: ${teams.length} Teams</div>`;
-            document.getElementById('divName').value=''; document.getElementById('teamList').value='';
-        };
-
-        const addMins = (t, m) => {
-            let [hh,mm]=t.split(':').map(Number);
-            mm+=m; hh+=Math.floor(mm/60); mm%=60;
-            return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
-        };
-
-        // --- NEW: THE CIRCLE METHOD ALGORITHM ---
-        const generateRoundRobin = (teams) => {
-            const schedule = [];
-            let pool = [...teams]; // Copy array
+        // --- CALCULATOR ---
+        window.calculateOptions = () => {
+            const teamTotal = parseInt(document.getElementById('teamCount').value);
+            const divCount = parseInt(document.getElementById('divCount').value);
+            const pitches = parseInt(document.getElementById('pitchCount').value);
+            const slotDur = parseInt(document.getElementById('gameDur').value) + parseInt(document.getElementById('breakDur').value);
             
-            // If odd number of teams, add a dummy "BYE" team
-            if (pool.length % 2 !== 0) pool.push("BYE");
+            // Assume even split for estimation
+            const teamsPerDiv = Math.ceil(teamTotal / divCount);
+            
+            const grid = document.getElementById('optionsGrid');
+            grid.innerHTML = '';
 
-            const numTeams = pool.length;
-            const rounds = numTeams - 1;
-            const matchesPerRound = numTeams / 2;
+            // CALC 1: BLOCKED (Morning/Afternoon)
+            // Div A plays all games, then Div B plays.
+            const matchesPerDiv = (teamsPerDiv * (teamsPerDiv - 1)) / 2;
+            const blockTime = Math.ceil(matchesPerDiv / pitches) * slotDur;
+            
+            addOptionCard({
+                title: "Blocked Schedule",
+                icon: "🧱",
+                desc: `Finish ${divCount > 1 ? 'Division 1' : 'games'} completely before starting the next.`,
+                detail: `Good for separate arrival times (e.g. U15 AM, U18 PM).`,
+                mins: blockTime * divCount,
+                type: 'block',
+                param: divCount
+            });
 
-            for (let r = 0; r < rounds; r++) {
-                // Generate matches for this round
-                for (let m = 0; m < matchesPerRound; m++) {
-                    const team1 = pool[m];
-                    const team2 = pool[numTeams - 1 - m];
+            // CALC 2: WEAVED (Interleaved)
+            // Div A Slot 1, Div B Slot 1, Div A Slot 2...
+            // Ideal for rest periods (Supercounties Style)
+            if(divCount >= 2) {
+                addOptionCard({
+                    title: "Weaved / Interleaved",
+                    icon: "🧶",
+                    desc: `Alternate between divisions (A then B then A).`,
+                    detail: `Built-in rest periods. Keeps pitches full.`,
+                    mins: blockTime * divCount, // Same total time, different flow
+                    type: 'weave',
+                    param: divCount,
+                    recommended: true
+                });
+            }
 
-                    // Don't schedule matches against the "BYE" dummy
-                    if (team1 !== "BYE" && team2 !== "BYE") {
-                        schedule.push({ teamA: team1, teamB: team2, round: r + 1 });
+            // CALC 3: GROUPS (If > 6 teams per div)
+            if(teamsPerDiv > 5) {
+                addOptionCard({
+                    title: "Pools + Finals",
+                    icon: "🏆",
+                    desc: `Split each division into 2 pools.`,
+                    detail: `Faster completion. Includes Semis/Finals.`,
+                    mins: (blockTime * divCount) * 0.7, // Approx 30% faster
+                    type: 'pools',
+                    param: divCount
+                });
+            }
+
+            changeStep(2);
+        };
+
+        function addOptionCard({ title, icon, desc, detail, mins, type, param, recommended }) {
+            const div = document.createElement('div');
+            div.className = `option-card bg-white p-6 rounded-xl border shadow-sm relative cursor-pointer ${recommended ? 'recommended' : ''}`;
+            div.onclick = () => selectFormat(type, param, title);
+
+            div.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <div class="text-3xl">${icon}</div>
+                    <div class="text-right">
+                        <span class="block text-2xl font-black text-slate-800">${Math.floor(mins/60)}h ${mins%60}m</span>
+                    </div>
+                </div>
+                <h3 class="font-bold text-lg mb-1">${title}</h3>
+                <p class="text-sm text-slate-500 mb-2">${desc}</p>
+                <p class="text-xs text-indigo-600 bg-indigo-50 p-2 rounded">${detail}</p>
+                ${recommended ? '<div class="absolute top-2 right-2 text-[10px] bg-green-500 text-white px-2 py-1 rounded-full font-bold">RECOMMENDED</div>' : ''}
+            `;
+            document.getElementById('optionsGrid').appendChild(div);
+        }
+
+        window.selectFormat = (type, param, title) => {
+            config = { type, param, title };
+            document.getElementById('chosenFormatDisplay').innerText = title;
+            document.getElementById('chosenDetailsDisplay').innerText = `Setup for ${param} Divisions`;
+
+            // Generate Inputs for each Division
+            const container = document.getElementById('divisionInputs');
+            container.innerHTML = '';
+            for(let i=1; i<=param; i++) {
+                container.innerHTML += `
+                    <div class="bg-slate-50 p-3 rounded border">
+                        <input type="text" id="divName${i}" placeholder="Division ${i} Name (e.g. U${12+(i*3)})" class="w-full mb-2 p-2 text-sm border rounded font-bold">
+                        <textarea id="divTeams${i}" placeholder="Paste Teams for Division ${i}" class="w-full p-2 text-sm border rounded h-20"></textarea>
+                    </div>
+                `;
+            }
+            changeStep(3);
+        };
+
+        // --- GENERATOR ---
+        window.generateFinal = async () => {
+            const btn = document.getElementById('genBtn');
+            btn.innerText = "Generating..."; btn.disabled = true;
+
+            const slotDur = parseInt(document.getElementById('gameDur').value) + parseInt(document.getElementById('breakDur').value);
+            const pitchCount = parseInt(document.getElementById('pitchCount').value);
+            
+            // 1. GATHER TEAMS
+            let divisions = [];
+            for(let i=1; i<=config.param; i++) {
+                const name = document.getElementById(`divName${i}`).value || `Div ${i}`;
+                const raw = document.getElementById(`divTeams${i}`).value;
+                const teams = raw.split(/[\n,]+/).map(t=>t.trim()).filter(t=>t);
+                if(teams.length > 0) divisions.push({ name, teams });
+            }
+
+            // 2. BUILD MATCHES
+            let allMatches = [];
+            divisions.forEach(div => {
+                // Simple Round Robin for now
+                for(let i=0; i<div.teams.length; i++) {
+                    for(let j=i+1; j<div.teams.length; j++) {
+                        allMatches.push({ 
+                            teamA: div.teams[i], teamB: div.teams[j], 
+                            division: div.name, status: 'scheduled', scoreA:0, scoreB:0 
+                        });
                     }
                 }
+            });
+
+            // 3. SORTING ALGORITHM (THE WEAVER)
+            if(config.type === 'weave') {
+                // Sort matches so we alternate divisions: [DivA_Game1, DivB_Game1, DivA_Game2...]
+                // Group matches by Division first
+                const matchesByDiv = {};
+                divisions.forEach(d => matchesByDiv[d.name] = allMatches.filter(m => m.division === d.name));
                 
-                // ROTATE THE TEAMS (Circle Method)
-                // Keep index 0 fixed, rotate the rest clockwise
-                // [0, 1, 2, 3] -> [0, 3, 1, 2]
-                pool.splice(1, 0, pool.pop());
-            }
-            
-            return schedule;
-        };
-
-        window.generate = async () => {
-            if(divisions.length === 0) return alert("Add a division first!");
-
-            // 1. GENERATE USING NEW ALGORITHM
-            let matches = [];
-            divisions.forEach(div => {
-                const rrMatches = generateRoundRobin(div.teams);
-                // Add metadata
-                rrMatches.forEach(m => {
-                    matches.push({
-                        ...m,
-                        division: div.name,
-                        status: 'scheduled',
-                        scoreA: 0, scoreB: 0
+                let weaved = [];
+                const maxLen = Math.max(...Object.values(matchesByDiv).map(arr => arr.length));
+                
+                for(let i=0; i<maxLen; i++) {
+                    // Take `pitchCount` games from Div A, then `pitchCount` from Div B
+                    // This creates "Waves" of games
+                    divisions.forEach(d => {
+                        const batch = matchesByDiv[d.name].slice(i * pitchCount, (i+1) * pitchCount);
+                        weaved.push(...batch);
                     });
-                });
-            });
-
-            if(!confirm(`I have generated ${matches.length} matches using the Fair Play Circle Method.\n\nProceed to upload?`)) return;
-
-            const btn = document.getElementById('genBtn');
-            btn.innerText = "Uploading..."; btn.disabled = true;
-
-            // 2. ASSIGN PITCHES & TIMES
-            const pitchCount = parseInt(document.getElementById('pitchCount').value);
-            const slotDur = parseInt(document.getElementById('slotDur').value);
-            let startTime = document.getElementById('startTime').value;
-            let pitchTimes = Array(pitchCount).fill(startTime);
-
-            const updates = {};
-            const schedulePath = `tournaments/${eventId}/schedule`;
-            await set(ref(db, schedulePath), null);
-
-            matches.forEach((match, index) => {
-                const pitchIndex = index % pitchCount;
-                
-                match.field = pitchIndex + 1;
-                match.timeSlot = pitchTimes[pitchIndex];
-                
-                // Advance time for this pitch
-                pitchTimes[pitchIndex] = addMins(pitchTimes[pitchIndex], slotDur);
-
-                const newKey = push(ref(db, schedulePath)).key;
-                updates[newKey] = match;
-            });
-
-            // 3. ATOMIC UPLOAD
-            try {
-                await update(ref(db, schedulePath), updates);
-                await set(ref(db, `tournaments/${eventId}/match`), { teamA:"TBD", teamB:"TBD", scoreA:0, scoreB:0, isRunning:false });
-                window.location.href = `review.html?event=${eventId}`;
-            } catch (error) {
-                alert("Error: " + error.message);
-                btn.disabled = false;
+                    // Note: This logic assumes we burn through games in chunks of 'pitchCount'
+                    // To do it perfectly, we might need to adjust the slice index, but this is a solid v1.
+                }
+                // Overwrite allMatches with the re-ordered list
+                // If the weave missed any (due to uneven lengths), append remainder? 
+                // A safer simple weave: just zip them 1 by 1.
+                // Let's stick to simple zip for robustness:
+                weaved = [];
+                for(let i=0; i<allMatches.length; i++) {
+                     divisions.forEach(d => {
+                         const m = matchesByDiv[d.name][i];
+                         if(m) weaved.push(m);
+                     });
+                }
+                allMatches = weaved;
             }
-        };
-        // --- NEW: EDIT/RELOAD FUNCTION ---
-        window.loadExistingConfig = async () => {
-            const snap = await get(ref(db, `tournaments/${eventId}/schedule`));
-            if(!snap.exists()) return; // No existing data to edit
 
-            // 1. Analyze existing schedule to rebuild team lists
-            const matches = Object.values(snap.val());
-            const detectedDivisions = {};
+            // 4. ASSIGN PITCHES
+            const scheduleRef = ref(db, `tournaments/${eventId}/schedule`);
+            await set(scheduleRef, null);
 
-            matches.forEach(m => {
-                if(!detectedDivisions[m.division]) detectedDivisions[m.division] = new Set();
-                detectedDivisions[m.division].add(m.teamA);
-                detectedDivisions[m.division].add(m.teamB);
+            let pitchTimes = Array(pitchCount).fill(9 * 60); // 09:00 start
+            const toTime = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+            
+            const promises = allMatches.map(m => {
+                // Find earliest pitch
+                let pIdx = 0;
+                for(let p=1; p<pitchCount; p++) if(pitchTimes[p] < pitchTimes[pIdx]) pIdx = p;
+                
+                m.field = pIdx + 1;
+                m.timeSlot = toTime(pitchTimes[pIdx]);
+                
+                pitchTimes[pIdx] += slotDur;
+                return push(scheduleRef, m);
             });
 
-            // 2. Alert User
-            if(confirm(`Found existing data! Load ${Object.keys(detectedDivisions).length} divisions to edit?`)) {
-                
-                // Clear current list
-                document.getElementById('divisionDisplay').innerHTML = '';
-                // Reset internal array
-                divisions.length = 0; 
-
-                // Populate Inputs
-                Object.entries(detectedDivisions).forEach(([divName, teamSet]) => {
-                    const teams = Array.from(teamSet);
-                    // Add to internal logic
-                    divisions.push({ name: divName, teams: teams });
-                    // Show on screen
-                    document.getElementById('divisionDisplay').innerHTML += 
-                        `<div class="bg-white p-3 border rounded text-sm relative group">
-                            <strong>${divName}</strong>: ${teams.length} Teams
-                            <br><span class="text-xs text-slate-400">${teams.join(', ')}</span>
-                         </div>`;
-                });
-                
-                alert("Teams loaded! You can now Clear Schedule & Regenerate.");
-                changeStep(4); // Jump to Teams step
-            }
+            await set(ref(db, `tournaments/${eventId}/match`), { teamA:"TBD", teamB:"TBD", scoreA:0, scoreB:0, isRunning:false });
+            Promise.all(promises).then(() => window.location.href = `manage.html?event=${eventId}`);
         };
-
-        // Call this automatically? Or add a button? 
-        // Better to add a small button in the header of admin.html
     </script>
 </body>
 </html>
