@@ -71,7 +71,8 @@
 
     <script type="module">
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-        import { getDatabase, ref, set, push, get } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+        // ADDED 'update' to imports
+        import { getDatabase, ref, set, push, get, update } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
         import { app, db } from './firebase-config.js';
 
         const auth = getAuth(app);
@@ -107,7 +108,7 @@
         window.generate = async () => {
             if(divisions.length === 0) return alert("Add a division first!");
 
-            // 1. CALCULATE MATCHES
+            // 1. GENERATE MATCHES IN MEMORY
             let matches = [];
             divisions.forEach(div => {
                 for(let i=0; i<div.teams.length; i++) {
@@ -120,53 +121,57 @@
                 }
             });
 
-            if(!confirm(`Ready to generate ${matches.length} matches?`)) return;
+            if(!confirm(`I am about to upload ${matches.length} matches in one batch. Proceed?`)) return;
 
-            // UI UPDATES
             const btn = document.getElementById('genBtn');
             const status = document.getElementById('loadingStatus');
-            btn.disabled = true; btn.classList.add('opacity-50');
+            btn.disabled = true; 
             status.classList.remove('hidden');
 
-            const scheduleRef = ref(db, `tournaments/${eventId}/schedule`);
-            await set(scheduleRef, null); // Clear old
-
-            // 2. ASSIGN TIMES & PITCHES
+            // 2. PREPARE THE DATA PACKAGE (The Fix)
             const pitchCount = parseInt(document.getElementById('pitchCount').value);
             const slotDur = parseInt(document.getElementById('slotDur').value);
             let startTime = document.getElementById('startTime').value;
             let pitchTimes = Array(pitchCount).fill(startTime);
 
-            const promises = matches.map((match, index) => {
+            // We create a big object containing all updates
+            const updates = {};
+            const schedulePath = `tournaments/${eventId}/schedule`;
+
+            // First, clear existing schedule by setting it to null in the update object
+            // Actually, safer to just set the node to null first to ensure clean slate
+            await set(ref(db, schedulePath), null);
+
+            matches.forEach((match, index) => {
+                // Assign Logistics
                 const pitchIndex = index % pitchCount;
                 match.field = pitchIndex + 1;
                 match.timeSlot = pitchTimes[pitchIndex];
                 pitchTimes[pitchIndex] = addMins(pitchTimes[pitchIndex], slotDur);
-                return push(scheduleRef, match);
+
+                // Generate a unique ID (Key) locally without sending it yet
+                const newMatchKey = push(ref(db, schedulePath)).key;
+                
+                // Add to the package
+                updates[newMatchKey] = match;
             });
 
-            // Init Match
-            await set(ref(db, `tournaments/${eventId}/match`), { teamA:"TBD", teamB:"TBD", scoreA:0, scoreB:0, isRunning:false });
-
-            // 3. WAIT FOR ALL WRITES (The Fix)
+            // 3. SEND ONE GIANT PACKAGE (Atomic Update)
             try {
-                await Promise.all(promises);
+                // This sends ALL matches in 1 HTTP request. 
+                // It either fully works or fully fails. No partials.
+                await update(ref(db, schedulePath), updates);
                 
-                // DOUBLE CHECK: Read back to ensure data exists
-                const snap = await get(scheduleRef);
-                const count = snap.size; 
-                
-                if (count > 0) {
-                    // Success - Redirect
-                    setTimeout(() => window.location.href = `review.html?event=${eventId}`, 500);
-                } else {
-                    throw new Error("Database is empty after write.");
-                }
+                // Init Match Node
+                await set(ref(db, `tournaments/${eventId}/match`), { teamA:"TBD", teamB:"TBD", scoreA:0, scoreB:0, isRunning:false });
+
+                // Redirect
+                window.location.href = `review.html?event=${eventId}`;
 
             } catch (error) {
                 console.error(error);
-                alert("Error saving schedule: " + error.message);
-                btn.disabled = false; btn.innerText = "Try Again";
+                alert("Upload failed: " + error.message);
+                btn.disabled = false;
             }
         };
     </script>
