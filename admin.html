@@ -189,6 +189,49 @@
                 btn.disabled = false;
             }
         };
+        // --- NEW: EDIT/RELOAD FUNCTION ---
+        window.loadExistingConfig = async () => {
+            const snap = await get(ref(db, `tournaments/${eventId}/schedule`));
+            if(!snap.exists()) return; // No existing data to edit
+
+            // 1. Analyze existing schedule to rebuild team lists
+            const matches = Object.values(snap.val());
+            const detectedDivisions = {};
+
+            matches.forEach(m => {
+                if(!detectedDivisions[m.division]) detectedDivisions[m.division] = new Set();
+                detectedDivisions[m.division].add(m.teamA);
+                detectedDivisions[m.division].add(m.teamB);
+            });
+
+            // 2. Alert User
+            if(confirm(`Found existing data! Load ${Object.keys(detectedDivisions).length} divisions to edit?`)) {
+                
+                // Clear current list
+                document.getElementById('divisionDisplay').innerHTML = '';
+                // Reset internal array
+                divisions.length = 0; 
+
+                // Populate Inputs
+                Object.entries(detectedDivisions).forEach(([divName, teamSet]) => {
+                    const teams = Array.from(teamSet);
+                    // Add to internal logic
+                    divisions.push({ name: divName, teams: teams });
+                    // Show on screen
+                    document.getElementById('divisionDisplay').innerHTML += 
+                        `<div class="bg-white p-3 border rounded text-sm relative group">
+                            <strong>${divName}</strong>: ${teams.length} Teams
+                            <br><span class="text-xs text-slate-400">${teams.join(', ')}</span>
+                         </div>`;
+                });
+                
+                alert("Teams loaded! You can now Clear Schedule & Regenerate.");
+                changeStep(4); // Jump to Teams step
+            }
+        };
+
+        // Call this automatically? Or add a button? 
+        // Better to add a small button in the header of admin.html
     </script>
 </body>
 </html>
