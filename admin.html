@@ -12,7 +12,6 @@
         .option-card { transition: all 0.2s; border: 2px solid transparent; }
         .option-card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
         .option-card.recommended { border-color: #22c55e; background-color: #f0fdf4; }
-        .option-card.tight { border-color: #f59e0b; background-color: #fffbeb; }
         .option-card.impossible { border-color: #ef4444; background-color: #fef2f2; opacity: 0.5; filter: grayscale(1); pointer-events: none; }
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
@@ -45,7 +44,7 @@
                     </div>
                     <div>
                         <label class="block text-xs font-bold uppercase text-indigo-500 mb-1">Divisions</label>
-                        <input type="number" id="divCountInput" value="1" min="1" class="w-full p-4 border-2 border-indigo-100 rounded-xl font-bold text-lg bg-indigo-50 text-indigo-900 focus:ring-2 ring-indigo-500 outline-none transition">
+                        <input type="number" id="divCountInput" value="2" min="1" class="w-full p-4 border-2 border-indigo-100 rounded-xl font-bold text-lg bg-indigo-50 text-indigo-900 focus:ring-2 ring-indigo-500 outline-none transition">
                     </div>
                     <div>
                         <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Pitches</label>
@@ -148,7 +147,7 @@
         const params = new URLSearchParams(window.location.search);
         const eventId = params.get('event');
         let config = {}; 
-        let pendingMatches = []; // Store calculated matches here before uploading
+        let pendingMatches = []; 
 
         if(!eventId) window.location.href="director.html";
         onAuthStateChanged(auth, u=>{if(!u)window.location.href="director.html"});
@@ -176,7 +175,6 @@
                 const avgTeams = Math.ceil(N / Divs);
                 const divMatches = (avgTeams * (avgTeams - 1)) / 2;
                 const totalCustomMatches = divMatches * Divs;
-
                 add({ title: `${Divs} Leagues`, icon: "🗂️", type: 'league', param: Divs, desc: `Separate leagues.`, matches: totalCustomMatches });
                 add({ title: `${Divs} Divs + Final`, icon: "⚔️", type: 'groups_final', param: Divs, desc: `Group stages -> Finals.`, matches: totalCustomMatches + (Divs - 1) });
             } else {
@@ -184,8 +182,7 @@
                 add({ title: "Swiss System", icon: "♟️", type: 'swiss', param: 1, desc: "4 Rounds.", matches: (N*4)/2 });
                 add({ title: "Knockout", icon: "🥊", type: 'knockout', param: 1, desc: "Single elim.", matches: N-1 });
             }
-
-            add({ title: "World Cup (4 Grps)", icon: "🏆", type: 'world_cup', param: 4, desc: "Groups -> Semis.", matches: 24 }); // Approx
+            add({ title: "World Cup (4 Grps)", icon: "🏆", type: 'world_cup', param: 4, desc: "Groups -> Semis.", matches: 24 });
             add({ title: "Cup & Plate", icon: "🍽️", type: 'cup_plate', param: 1, desc: "Losers -> Plate.", matches: N + (N/2) });
             add({ title: "Double Elim", icon: "🛡️", type: 'double_elim', param: 1, desc: "Lose twice.", matches: (2*N)-1 });
 
@@ -196,18 +193,13 @@
             const totalMins = Math.ceil(opt.matches / P) * slotDur;
             const percent = Math.round((totalMins / limit) * 100);
             const isPossible = totalMins <= limit;
-            
             const div = document.createElement('div');
             div.className = `option-card bg-white p-4 rounded-xl border shadow-sm relative cursor-pointer flex flex-col justify-between h-48 ${isPossible ? 'recommended' : 'impossible'}`;
             div.onclick = () => { if(isPossible) selectFormat(opt); };
             div.innerHTML = `
-                <div>
-                    <div class="flex justify-between items-start mb-2"><div class="text-3xl">${opt.icon}</div><div class="text-right"><span class="block text-lg font-black ${isPossible?'':'text-red-400'}">${Math.floor(totalMins/60)}h ${totalMins%60}m</span></div></div>
-                    <h3 class="font-bold text-md leading-tight">${opt.title}</h3>
-                    <p class="text-xs text-slate-500 mt-1 leading-snug">${opt.desc}</p>
-                </div>
-                <div class="mt-2"><div class="w-full bg-slate-100 rounded-full h-1.5 mb-2 overflow-hidden"><div class="h-full ${isPossible?'bg-green-500':'bg-red-500'}" style="width:${Math.min(percent,100)}%"></div></div><div class="flex justify-between text-[10px] uppercase font-bold text-slate-400"><span>${opt.matches} Games</span><span>${percent}% Cap</span></div></div>
-            `;
+                <div><div class="flex justify-between items-start mb-2"><div class="text-3xl">${opt.icon}</div><div class="text-right"><span class="block text-lg font-black ${isPossible?'':'text-red-400'}">${Math.floor(totalMins/60)}h ${totalMins%60}m</span></div></div>
+                <h3 class="font-bold text-md leading-tight">${opt.title}</h3><p class="text-xs text-slate-500 mt-1 leading-snug">${opt.desc}</p></div>
+                <div class="mt-2"><div class="w-full bg-slate-100 rounded-full h-1.5 mb-2 overflow-hidden"><div class="h-full ${isPossible?'bg-green-500':'bg-red-500'}" style="width:${Math.min(percent,100)}%"></div></div><div class="flex justify-between text-[10px] uppercase font-bold text-slate-400"><span>${opt.matches} Games</span><span>${percent}% Cap</span></div></div>`;
             document.getElementById('optionsGrid').appendChild(div);
         }
 
@@ -216,27 +208,20 @@
             document.getElementById('chosenFormatDisplay').innerText = opt.title;
             document.getElementById('chosenDetailsDisplay').innerText = opt.desc;
             document.getElementById('chosenIcon').innerText = opt.icon;
-            
             const container = document.getElementById('divisionInputs');
             container.innerHTML = '';
             const count = opt.param || 1;
-            
             for(let i=0; i<count; i++) {
                 const defaultName = (count === 1) ? "League" : `Division ${i+1}`;
                 const box = document.createElement('div');
                 box.className = "bg-slate-50 border p-4 rounded-xl";
-                box.innerHTML = `
-                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Division ${i+1} Name</label>
-                    <input type="text" id="divName_${i}" value="${defaultName}" class="w-full mb-3 p-2 border rounded font-bold text-slate-700 outline-none">
-                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Teams (One per line)</label>
-                    <textarea id="divTeams_${i}" class="w-full h-32 p-2 border rounded text-xs font-mono outline-none" placeholder="Team A\nTeam B..."></textarea>
-                `;
+                box.innerHTML = `<label class="block text-xs font-bold uppercase text-slate-400 mb-1">Division ${i+1} Name</label><input type="text" id="divName_${i}" value="${defaultName}" class="w-full mb-3 p-2 border rounded font-bold text-slate-700 outline-none"><label class="block text-xs font-bold uppercase text-slate-400 mb-1">Teams (One per line)</label><textarea id="divTeams_${i}" class="w-full h-32 p-2 border rounded text-xs font-mono outline-none" placeholder="Team A\nTeam B..."></textarea>`;
                 container.appendChild(box);
             }
             changeStep(3);
         };
 
-        // --- 3. GENERATE PREVIEW (No Upload Yet) ---
+        // --- 3. GENERATE PREVIEW (With Physics Engine) ---
         window.generatePreview = () => {
             pendingMatches = [];
             const slotDur = parseInt(document.getElementById('gameDur').value) + parseInt(document.getElementById('breakDur').value);
@@ -244,6 +229,7 @@
             const flow = document.getElementById('scheduleFlow').value;
             const divCount = config.param || 1;
             let matchPools = [];
+            let allTeamNames = new Set();
 
             // A. Create Matches
             for(let i=0; i<divCount; i++) {
@@ -251,14 +237,12 @@
                 const rawTeams = document.getElementById(`divTeams_${i}`).value.split(/[\r\n,]+/).map(t=>t.trim()).filter(t=>t);
                 
                 if(rawTeams.length > 1) {
+                    rawTeams.forEach(t => allTeamNames.add(t));
                     let pool = [];
                     if (['league', 'groups_final', 'world_cup', 'waterfall'].includes(config.type)) {
-                        for(let a=0; a<rawTeams.length; a++) 
-                            for(let b=a+1; b<rawTeams.length; b++) 
-                                pool.push({ teamA:rawTeams[a], teamB:rawTeams[b], division:divName, type:'group' });
+                        for(let a=0; a<rawTeams.length; a++) for(let b=a+1; b<rawTeams.length; b++) pool.push({ teamA:rawTeams[a], teamB:rawTeams[b], division:divName, type:'group' });
                     } else {
-                        for(let a=0; a<rawTeams.length; a+=2) 
-                            pool.push({ teamA:rawTeams[a], teamB:rawTeams[a+1]||"BYE", division:divName, type:'ko' });
+                        for(let a=0; a<rawTeams.length; a+=2) pool.push({ teamA:rawTeams[a], teamB:rawTeams[a+1]||"BYE", division:divName, type:'ko' });
                     }
                     matchPools.push(pool);
                 }
@@ -266,34 +250,59 @@
 
             if(matchPools.length === 0) return alert("Please enter at least 2 teams.");
 
-            // B. Merge & Assign Times
+            // B. Merge (Zipper or Block)
             let finalMatches = [];
             if(flow === 'block') matchPools.forEach(p => finalMatches.push(...p));
             else {
                 let max = Math.max(...matchPools.map(p => p.length));
                 for(let i=0; i<max; i++) matchPools.forEach(p => { if(p[i]) finalMatches.push(p[i]); });
             }
-
             if(config.type === 'groups_final') finalMatches.push({teamA:"Winner A", teamB:"Winner B", division:"Final", type:'final'});
 
-            // C. Schedule (Simple Card Dealer for Reliability)
-            let pitchTimes = Array(pitchCount).fill(9 * 60); 
+            // C. PHYSICS ENGINE (Conflict Solver)
+            let pitchAvail = Array(pitchCount).fill(0); // Mins from start
+            let teamAvail = {};
+            allTeamNames.forEach(t => teamAvail[t] = 0);
+            // Add placeholders to availability map
+            ["Winner A", "Winner B", "Winner Div 1", "Winner Div 2", "BYE"].forEach(t => teamAvail[t] = 0);
+
+            const START = 9 * 60; 
             const toTime = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
 
-            finalMatches.forEach((m, idx) => {
-                // Find earliest pitch
-                let pIdx = 0;
-                for(let p=1; p<pitchCount; p++) if(pitchTimes[p] < pitchTimes[pIdx]) pIdx = p;
-                
-                m.field = pIdx + 1;
-                m.timeSlot = toTime(pitchTimes[pIdx]);
+            finalMatches.forEach(m => {
+                // Earliest teams are ready
+                const tA = teamAvail[m.teamA] || 0;
+                const tB = teamAvail[m.teamB] || 0;
+                const teamsReady = Math.max(tA, tB);
+
+                // Find best pitch (Earliest valid slot)
+                let bestPitch = -1;
+                let bestStart = Infinity;
+
+                for(let p=0; p<pitchCount; p++) {
+                    // Match starts when Pitch is free AND Teams are ready
+                    const possibleStart = Math.max(pitchAvail[p], teamsReady);
+                    
+                    if (possibleStart < bestStart) {
+                        bestStart = possibleStart;
+                        bestPitch = p;
+                    }
+                }
+
+                m.field = bestPitch + 1;
+                m.timeSlot = toTime(START + bestStart);
                 m.scoreA = 0; m.scoreB = 0; m.status = 'scheduled';
+
+                // Update Locks
+                const finish = bestStart + slotDur;
+                pitchAvail[bestPitch] = finish;
+                teamAvail[m.teamA] = finish;
+                teamAvail[m.teamB] = finish;
                 
-                pitchTimes[pIdx] += slotDur;
                 pendingMatches.push(m);
             });
 
-            // D. Render to Table
+            // D. Render Preview
             const tbody = document.getElementById('previewBody');
             tbody.innerHTML = '';
             pendingMatches.forEach(m => {
