@@ -43,7 +43,7 @@
         <input type="text" id="teamsInput" placeholder="Teams (comma separated)">
         <button onclick="addDivision()" style="background:#28a745; color:white; width:100%; margin-top:10px">+ Add Division</button>
         <div id="divisionList" style="margin:10px 0"></div>
-        <button onclick="finishSetup()" style="background:var(--primary); color:white; width:100%; margin-top:20px">Generate Schedule</button>
+        <button id="genBtn" onclick="finishSetup()" style="background:var(--primary); color:white; width:100%; margin-top:20px">Generate Schedule</button>
     </div>
 
     <div id="step4" class="step">
@@ -54,11 +54,23 @@
 </div>
 
 <script type="module">
+    // 1. ADDED AUTH IMPORTS HERE so the DB knows who you are
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
     import { getDatabase, ref, set, push } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
     import { app, db } from './firebase-config.js';
 
+    const auth = getAuth(app);
     const params = new URLSearchParams(window.location.search);
     const eventId = params.get('event');
+
+    // 2. CHECK LOGIN STATUS
+    onAuthStateChanged(auth, (user) => {
+        if (!user) {
+            alert("You must be logged in to edit tournaments.");
+            window.location.href = "director.html";
+        }
+    });
+
     if(!eventId) { alert("Access via Director Portal"); window.location.href = "director.html"; }
 
     let tournamentData = { sport: '', settings: {}, divisions: [] };
@@ -87,16 +99,22 @@
         document.getElementById('divNameInput').value = '';
     };
 
+    // 3. UPDATED TO HANDLE ERRORS
     window.finishSetup = () => {
+        const btn = document.getElementById('genBtn');
+        btn.innerText = "Generating...";
+        btn.disabled = true;
+
         const scheduleRef = ref(db, `tournaments/${eventId}/schedule`);
         const matchRef = ref(db, `tournaments/${eventId}/match`);
         const fields = parseInt(document.getElementById('fieldCount').value);
         let idCounter = 1;
+        const promises = [];
 
         tournamentData.divisions.forEach(div => {
             for(let i=0; i<div.teams.length; i++) {
                 for(let j=i+1; j<div.teams.length; j++) {
-                    push(scheduleRef, {
+                    const p = push(scheduleRef, {
                         id: idCounter,
                         teamA: div.teams[i],
                         teamB: div.teams[j],
@@ -108,14 +126,26 @@
                         field: (idCounter % fields) + 1,
                         timeSlot: "10:00"
                     });
+                    promises.push(p);
                     idCounter++;
                 }
             }
         });
 
         // Init Live Match
-        set(matchRef, { teamA:"TBD", teamB:"TBD", scoreA:0, scoreB:0, time:0, isRunning:false, sport:tournamentData.sport });
-        changeStep(4);
+        promises.push(set(matchRef, { teamA:"TBD", teamB:"TBD", scoreA:0, scoreB:0, time:0, isRunning:false, sport:tournamentData.sport }));
+
+        // Wait for DB to confirm save
+        Promise.all(promises)
+            .then(() => {
+                changeStep(4); // Only show success if it worked
+            })
+            .catch((error) => {
+                console.error(error);
+                alert("Error saving schedule: " + error.code);
+                btn.innerText = "Try Again";
+                btn.disabled = false;
+            });
     };
 </script>
 </body>
