@@ -1,107 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup Wizard</title>
+    <style>
+        :root { --primary: #007bff; --bg: #f8f9fa; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); padding: 20px; color: #333; }
+        .wizard-container { max-width: 600px; margin: 40px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .step { display: none; } .step.active { display: block; }
+        input, select { width: 100%; padding: 12px; margin-top: 5px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        button { padding: 12px; border: none; border-radius: 8px; cursor: pointer; }
+        .sport-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .sport-card { padding: 15px; border: 2px solid #eee; border-radius: 8px; text-align: center; cursor: pointer; }
+        .sport-card.selected { border-color: var(--primary); background: #e7f1ff; font-weight: bold; }
+    </style>
+</head>
+<body>
+<div class="wizard-container">
+    <div id="step1" class="step active">
+        <h1>Sport Selection</h1>
+        <div class="sport-grid">
+            <div class="sport-card" onclick="selectSport('lacrosse')">🥍 Lacrosse</div>
+            <div class="sport-card" onclick="selectSport('soccer')">⚽ Soccer</div>
+            <div class="sport-card" onclick="selectSport('basketball')">🏀 Basketball</div>
+            <div class="sport-card" onclick="selectSport('rugby')">🏉 Rugby</div>
+        </div>
+    </div>
+
+    <div id="step2" class="step">
+        <h1>Settings</h1>
+        <label>Game Duration</label><input type="number" id="gameDuration">
+        <label>Break Time</label><input type="number" id="breakDuration">
+        <label>Fields</label><input type="number" id="fieldCount" value="1">
+        <button onclick="changeStep(1)" style="margin-top:10px">Back</button>
+        <button onclick="changeStep(3)" style="margin-top:10px; background:var(--primary); color:white">Next</button>
+    </div>
+
+    <div id="step3" class="step">
+        <h1>Teams</h1>
+        <input type="text" id="divNameInput" placeholder="Division Name">
+        <input type="text" id="teamsInput" placeholder="Teams (comma separated)">
+        <button onclick="addDivision()" style="background:#28a745; color:white; width:100%; margin-top:10px">+ Add Division</button>
+        <div id="divisionList" style="margin:10px 0"></div>
+        <button onclick="finishSetup()" style="background:var(--primary); color:white; width:100%; margin-top:20px">Generate Schedule</button>
+    </div>
+
+    <div id="step4" class="step">
+        <h1 style="color:green">Success!</h1>
+        <p>Schedule generated for this event.</p>
+        <a href="director.html">Return to Dashboard</a>
+    </div>
+</div>
+
 <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
     import { getDatabase, ref, set, push } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
-    import { firebaseConfig } from './firebase-config.js';
+    import { app, db } from './firebase-config.js';
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-
-    // 1. GET EVENT ID FROM URL
     const params = new URLSearchParams(window.location.search);
     const eventId = params.get('event');
-
-    if(!eventId) {
-        alert("No Event ID provided. Please access via Director Portal.");
-        window.location.href = "director.html";
-    }
-
-    const sportPresets = {
-        lacrosse: { duration: 60, break: 10, periods: 4 },
-        basketball: { duration: 40, break: 15, periods: 4 },
-        soccer: { duration: 90, break: 15, periods: 2 },
-        rugby: { duration: 14, break: 2, periods: 2 },
-        hockey: { duration: 60, break: 15, periods: 3 },
-        volleyball: { duration: 60, break: 10, periods: 3 },
-        netball: { duration: 60, break: 5, periods: 4 },
-        baseball: { duration: 120, break: 20, periods: 1 }
-    };
+    if(!eventId) { alert("Access via Director Portal"); window.location.href = "director.html"; }
 
     let tournamentData = { sport: '', settings: {}, divisions: [] };
+    const presets = { lacrosse: {d:60,b:10}, soccer: {d:90,b:15}, basketball: {d:40,b:10}, rugby: {d:14,b:2} };
 
-    window.selectSport = (sport) => {
-        document.querySelectorAll('.sport-card').forEach(el => el.classList.remove('selected'));
+    window.selectSport = (s) => {
+        tournamentData.sport = s;
+        document.querySelectorAll('.sport-card').forEach(e=>e.classList.remove('selected'));
         event.target.classList.add('selected');
-        tournamentData.sport = sport;
-        
-        const s = sportPresets[sport] || { duration: 30, break: 5 };
-        document.getElementById('gameDuration').value = s.duration;
-        document.getElementById('breakDuration').value = s.break;
-        setTimeout(() => changeStep(2), 300);
+        document.getElementById('gameDuration').value = presets[s].d;
+        document.getElementById('breakDuration').value = presets[s].b;
+        setTimeout(()=>changeStep(2), 200);
     };
 
-    window.changeStep = (stepNum) => {
-        document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
-        document.getElementById(`step${stepNum}`).classList.add('active');
+    window.changeStep = (n) => {
+        document.querySelectorAll('.step').forEach(e=>e.classList.remove('active'));
+        document.getElementById(`step${n}`).classList.add('active');
     };
 
     window.addDivision = () => {
         const name = document.getElementById('divNameInput').value;
-        const teamsStr = document.getElementById('teamsInput').value;
-        if(!name || !teamsStr) return alert("Fill info");
-        
-        const teams = teamsStr.split(',').map(t => t.trim());
-        tournamentData.divisions.push({ name, teams });
-        
-        const divEl = document.createElement('div');
-        divEl.className = 'division-item';
-        divEl.innerHTML = `<strong>${name}</strong>: ${teams.length} teams`;
-        document.getElementById('divisionList').appendChild(divEl);
-        
+        const teams = document.getElementById('teamsInput').value.split(',').map(t=>t.trim());
+        if(!name || !teams[0]) return;
+        tournamentData.divisions.push({name, teams});
+        document.getElementById('divisionList').innerHTML += `<div><b>${name}</b>: ${teams.length} teams</div>`;
         document.getElementById('divNameInput').value = '';
-        document.getElementById('teamsInput').value = '';
     };
 
     window.finishSetup = () => {
-        tournamentData.settings = {
-            duration: parseInt(document.getElementById('gameDuration').value),
-            breakTime: parseInt(document.getElementById('breakDuration').value),
-            fields: parseInt(document.getElementById('fieldCount').value)
-        };
-
-        // WRITE TO SPECIFIC EVENT NODE
         const scheduleRef = ref(db, `tournaments/${eventId}/schedule`);
-        const matchRef = ref(db, `tournaments/${eventId}/match`); // Init match state
-        
-        let matchIdCounter = 1;
+        const matchRef = ref(db, `tournaments/${eventId}/match`);
+        const fields = parseInt(document.getElementById('fieldCount').value);
+        let idCounter = 1;
 
         tournamentData.divisions.forEach(div => {
-            const teams = div.teams;
-            for (let i = 0; i < teams.length; i++) {
-                for (let j = i + 1; j < teams.length; j++) {
-                    const newMatch = {
-                        id: matchIdCounter++,
+            for(let i=0; i<div.teams.length; i++) {
+                for(let j=i+1; j<div.teams.length; j++) {
+                    push(scheduleRef, {
+                        id: idCounter,
+                        teamA: div.teams[i],
+                        teamB: div.teams[j],
                         division: div.name,
-                        teamA: teams[i],
-                        teamB: teams[j],
                         status: 'scheduled',
-                        scoreA: 0,
-                        scoreB: 0,
-                        timeRemaining: tournamentData.settings.duration * 60,
+                        scoreA: 0, scoreB: 0,
+                        timeRemaining: document.getElementById('gameDuration').value * 60,
                         sport: tournamentData.sport,
-                        field: (matchIdCounter % tournamentData.settings.fields) + 1,
+                        field: (idCounter % fields) + 1,
                         timeSlot: "10:00"
-                    };
-                    push(scheduleRef, newMatch);
+                    });
+                    idCounter++;
                 }
             }
         });
 
-        // Initialize Live Match State (Empty)
-        set(matchRef, {
-            teamA: "TBD", teamB: "TBD", scoreA: 0, scoreB: 0, 
-            time: 0, isRunning: false, sport: tournamentData.sport
-        });
-
+        // Init Live Match
+        set(matchRef, { teamA:"TBD", teamB:"TBD", scoreA:0, scoreB:0, time:0, isRunning:false, sport:tournamentData.sport });
         changeStep(4);
     };
 </script>
+</body>
+</html>
