@@ -61,11 +61,11 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Game Mins</label>
-                            <input type="number" id="gameDur" value="15" class="w-full p-3 border rounded font-bold">
+                            <input type="number" id="gameDur" value="30" class="w-full p-3 border rounded font-bold">
                         </div>
                         <div>
                             <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Break Mins</label>
-                            <input type="number" id="breakDur" value="5" class="w-full p-3 border rounded font-bold">
+                            <input type="number" id="breakDur" value="7" class="w-full p-3 border rounded font-bold">
                         </div>
                     </div>
                 </div>
@@ -212,7 +212,7 @@
             container.innerHTML = '';
             const count = opt.param || 1;
             for(let i=0; i<count; i++) {
-                const defaultName = (count === 1) ? "League" : `Division ${i+1}`;
+                const defaultName = (count === 1) ? "League" : (i===0 ? "U15" : "U18"); // Smart defaults for you
                 const box = document.createElement('div');
                 box.className = "bg-slate-50 border p-4 rounded-xl";
                 box.innerHTML = `<label class="block text-xs font-bold uppercase text-slate-400 mb-1">Division ${i+1} Name</label><input type="text" id="divName_${i}" value="${defaultName}" class="w-full mb-3 p-2 border rounded font-bold text-slate-700 outline-none"><label class="block text-xs font-bold uppercase text-slate-400 mb-1">Teams (One per line)</label><textarea id="divTeams_${i}" class="w-full h-32 p-2 border rounded text-xs font-mono outline-none" placeholder="Team A\nTeam B..."></textarea>`;
@@ -229,8 +229,6 @@
             const flow = document.getElementById('scheduleFlow').value;
             const divCount = config.param || 1;
             let matchPools = [];
-            
-            // Track team availability by UNIQUE ID
             let teamAvail = {}; 
             const getTeamId = (div, name) => `${div}::${name}`;
 
@@ -240,9 +238,7 @@
                 const rawTeams = document.getElementById(`divTeams_${i}`).value.split(/[\r\n,]+/).map(t=>t.trim()).filter(t=>t);
                 
                 if(rawTeams.length > 1) {
-                    rawTeams.forEach(t => {
-                        teamAvail[getTeamId(divName, t)] = 0; 
-                    });
+                    rawTeams.forEach(t => teamAvail[getTeamId(divName, t)] = 0);
 
                     let pool = [];
                     if (['league', 'groups_final', 'world_cup', 'waterfall'].includes(config.type)) {
@@ -261,36 +257,32 @@
 
             // B. Initialize Clocks
             let pitchAvail = Array(pitchCount).fill(0); 
-            const START = 9 * 60; // 09:00
+            const START = 9 * 60 + 40; // 09:40 Start to match PDF
             const toTime = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
             
             // Queue Management
             let matchQueue = [];
             if(flow === 'block') {
-                // Sequential: Pool 1, then Pool 2
                 matchPools.forEach(pool => matchQueue.push(...pool));
             } else {
-                // Interwoven: Zipper merge
+                // Interwoven: Zipper merge (Solar style)
                 let max = Math.max(...matchPools.map(p => p.length));
                 for(let i=0; i<max; i++) matchPools.forEach(p => { if(p[i]) matchQueue.push(p[i]); });
             }
 
             if(config.type === 'groups_final') {
-                // Placeholder finals
                 matchQueue.push({teamA:"Winner A", teamB:"Winner B", division:"Final", type:'final', idA: "Final_A", idB: "Final_B"});
                 teamAvail["Final_A"] = 0; teamAvail["Final_B"] = 0;
             }
 
             // C. Assign Slots
             while(matchQueue.length > 0) {
-                // 1. Find Pitch with Earliest Hole
                 let bestPitch = 0;
                 for(let p=1; p<pitchCount; p++) {
                     if(pitchAvail[p] < pitchAvail[bestPitch]) bestPitch = p;
                 }
                 let slotTime = pitchAvail[bestPitch];
 
-                // 2. Find compatible match
                 let bestMatchIdx = -1;
                 for(let i=0; i<matchQueue.length; i++) {
                     const m = matchQueue[i];
@@ -299,7 +291,6 @@
                     if (tA <= slotTime && tB <= slotTime) { bestMatchIdx = i; break; }
                 }
 
-                // 3. If no perfect fit, advance time
                 if (bestMatchIdx === -1) {
                     let earliestPossible = Infinity;
                     for(let i=0; i<matchQueue.length; i++) {
@@ -310,7 +301,6 @@
                     slotTime = earliestPossible;
                 }
 
-                // 4. Commit
                 const m = matchQueue.splice(bestMatchIdx, 1)[0];
                 m.field = bestPitch + 1;
                 m.timeSlot = toTime(START + slotTime);
@@ -350,7 +340,6 @@
                 for (let i = 0; i < total; i++) {
                     btn.innerText = `Uploading Match ${i + 1} of ${total}...`;
                     const m = pendingMatches[i];
-                    // Clean temp IDs
                     const cleanMatch = {
                         teamA: m.teamA, teamB: m.teamB, division: m.division,
                         field: m.field, timeSlot: m.timeSlot, 
