@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visual Scheduler</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* The Timeline Canvas */
+        .timeline-container { overflow-x: auto; white-space: nowrap; position: relative; padding-bottom: 20px; }
+        
+        /* Grid Lines */
+        .grid-bg { 
+            background-size: 60px 100%; /* 60px = 30 mins */
+            background-image: linear-gradient(to right, #e2e8f0 1px, transparent 1px);
+        }
+
+        /* Match Block */
+        .match-block {
+            position: absolute; height: 70px; top: 5px;
+            border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: all 0.2s; cursor: pointer;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            font-size: 10px; overflow: hidden; border: 2px solid white;
+        }
+        .match-block:hover { z-index: 10; transform: scale(1.05); }
+        
+        /* Selection States */
+        .match-block.selected { border-color: #f59e0b; background-color: #fffbeb !important; color: black; z-index: 20; box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.3); }
+        .match-block.conflict { background-color: #fee2e2 !important; border-color: #ef4444; color: #991b1b; }
+
+        /* The Ghost Cursor (Preview where you will drop) */
+        .ghost-slot {
+            position: absolute; height: 70px; top: 5px;
+            border: 2px dashed #6366f1; background: rgba(99, 102, 241, 0.1);
+            pointer-events: none; display: none; border-radius: 6px; z-index: 5;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col">
+
+    <div class="bg-slate-900 text-white p-4 sticky top-0 z-50 flex justify-between items-center shadow-lg">
+        <div class="flex items-center gap-4">
+            <a href="director.html" class="text-slate-400 hover:text-white">← Dashboard</a>
+            <h1 class="font-bold text-lg hidden md:block">Visual Scheduler</h1>
+            <div id="statusMsg" class="text-xs bg-slate-800 px-3 py-1.5 rounded text-slate-300 border border-slate-700">
+                Click a match to move it
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <a href="manage.html" id="listLink" class="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded">List View</a>
+            <button onclick="saveChanges()" class="text-xs bg-green-600 hover:bg-green-500 px-3 py-2 rounded font-bold shadow-lg">Auto-Saved</button>
+        </div>
+    </div>
+
+    <div class="flex-1 flex flex-col overflow-hidden">
+        
+        <div class="flex pl-24 border-b bg-white h-10 items-center sticky top-0 z-30 overflow-hidden" id="timeHeader">
+            </div>
+
+        <div class="flex-1 overflow-auto relative custom-scrollbar" id="scrollContainer">
+            <div id="gridCanvas" class="relative min-w-[2000px]">
+                <div class="absolute inset-0 grid-bg z-0 pointer-events-none"></div>
+                
+                <div id="ghost" class="ghost-slot"></div>
+
+                <div id="pitchRows" class="relative z-10 pt-2">
+                    </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+        import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+        import { app, db } from './firebase-config.js';
+
+        const auth = getAuth(app);
+        const params = new URLSearchParams(window.location.search);
+        const eventId = params.get('event');
+
+        if(!eventId) window.location.href='director.html';
+        document.getElementById('listLink').href = `manage.html?event=${eventId}`;
+
+        // CONFIG
+        const PIXELS_PER_MIN = 2; 
+        const START_HOUR = 8; // 08:00
+        const ROW_HEIGHT = 80; // px
+        let matches = [];
+        let pitches = [1,2,3,4]; // Default, will update from DB
+        let selectedMatchKey = null;
+
+        // --- 1. SETUP UI ---
+        
+        function initTimeHeader() {
+            const header = document.getElementById('timeHeader');
+            const canvasWidth = 2000; // Arbitrary wide width
+            header.innerHTML = '';
+            
+            for(let h = START_HOUR; h < 20; h++) {
+                const left = (h - START_HOUR) * 60 * PIXELS_PER_MIN;
+                const label = document.createElement('div');
+                label.className = "absolute text-xs font-bold text-slate-400 border-l border-slate-300 pl-1 h-full flex items-center";
+                label.style.left = `${left}px`;
+                label.innerText = `${h}:00`;
+                header.appendChild(label);
+            }
+        }
+        initTimeHeader();
+
+        // --- 2. LOAD DATA ---
+
+        // Load Settings (Pitch Count)
+        onValue(ref(db, `tournaments/${eventId}/settings`), s => {
+            const sett = s.val();
+            if(sett && sett.pitchCount) {
+                pitches = Array.from({length: sett.pitchCount}, (_, i) => i + 1);
+            } else if (sett && sett.pitches) {
+                pitches = sett.pitches.map(p => p.id); // If using advanced pitch object
+            }
+            renderRows();
+        });
+
+        // Load Matches
+        onValue(ref(db, `tournaments/${eventId}/schedule`), snap => {
+            matches = [];
+            snap.forEach(c => matches.push({key: c.key, ...c.val()}));
+            renderMatches();
+        });
+
+        // --- 3. RENDERING ---
+
+        function renderRows() {
+            const container = document.getElementById('pitchRows');
+            container.innerHTML = '';
+            
+            pitches.forEach((p, idx) => {
+                const row = document.createElement('div');
+                row.className = "relative border-b border-slate-200 bg-white/50 hover:bg-white/80 transition";
+                row.style.height = `${ROW_HEIGHT}px`;
+                row.dataset.pitch = p;
+                
+                // Click Row to Move Match Here
+                row.onclick = (e) => handleRowClick(e, p);
+
+                // Label
+                const label = document.createElement('div');
+                label.className = "sticky left-0 w-24 bg-slate-100 h-full flex items-center justify-center font-bold text-slate-600 border-r shadow-sm z-20 text-sm";
+                label.innerText = `Pitch ${p}`;
+                row.appendChild(label);
+
+                container.appendChild(row);
+            });
+        }
+
+        function renderMatches() {
+            // Clear old blocks (keep labels)
+            document.querySelectorAll('.match-block').forEach(el => el.remove());
+            const container = document.getElementById('pitchRows');
+
+            matches.forEach(m => {
+                // Helpers
+                const startMins = toMins(m.timeSlot);
+                const offsetMins = startMins - (START_HOUR * 60);
+                const duration = m.duration || 30; // Default 30 if missing
+                
+                if(offsetMins < 0) return; // Skip if too early (or bug)
+
+                const left = offsetMins * PIXELS_PER_MIN;
+                const width = duration * PIXELS_PER_MIN;
+                
+                // Find correct row
+                // We find the child div based on index, skipping 0 if necessary? 
+                // Easier: Append absolute div to the specific row element?
+                // Actually, let's just append to container and position Y absolutely?
+                // NO, easier to append to the specific Pitch Row so Y is handled automatically.
+                
+                const pitchIndex = pitches.indexOf(m.field);
+                if(pitchIndex === -1) return; // Unassigned pitch?
+
+                const row = container.children[pitchIndex];
+                if(!row) return;
+
+                const block = document.createElement('div');
+                block.className = `match-block bg-indigo-100 text-indigo-800 border-indigo-200`;
+                block.style.left = `${left + 96}px`; // +96px for the sidebar width
+                block.style.width = `${width}px`;
+                block.innerHTML = `
+                    <span class="font-bold truncate w-full text-center">${m.teamA}</span>
+                    <span class="text-[9px] text-indigo-400">vs</span>
+                    <span class="font-bold truncate w-full text-center">${m.teamB}</span>
+                `;
+                
+                // Division Color Coding (Simple hash)
+                if(m.division === 'U15') block.classList.add('bg-orange-100', 'text-orange-800', 'border-orange-200');
+                if(m.division === 'Pro') block.classList.add('bg-blue-100', 'text-blue-800', 'border-blue-200');
+
+                // Selection
+                if(selectedMatchKey === m.key) block.classList.add('selected');
+
+                // Click to Select
+                block.onclick = (e) => {
+                    e.stopPropagation(); // Don't trigger row click
+                    selectMatch(m);
+                };
+
+                row.appendChild(block);
+
+                // Conflict Check (Naive overlap check)
+                // Filter matches on same pitch
+                const overlaps = matches.filter(x => x.key !== m.key && x.field === m.field && isOverlap(m, x));
+                if(overlaps.length > 0) block.classList.add('conflict');
+            });
+        }
+
+        // --- 4. INTERACTION ---
+
+        function selectMatch(m) {
+            if(selectedMatchKey === m.key) {
+                // Deselect
+                selectedMatchKey = null;
+                document.getElementById('statusMsg').innerText = "Click a match to move it";
+                document.getElementById('statusMsg').className = "text-xs bg-slate-800 px-3 py-1.5 rounded text-slate-300 border border-slate-700";
+            } else {
+                // Select
+                selectedMatchKey = m.key;
+                const duration = m.duration || 30;
+                document.getElementById('statusMsg').innerText = `Selected: ${m.teamA} vs ${m.teamB}. Click any empty space to move.`;
+                document.getElementById('statusMsg').className = "text-xs bg-yellow-600 px-3 py-1.5 rounded text-white font-bold animate-pulse";
+                
+                // Setup Ghost
+                const ghost = document.getElementById('ghost');
+                ghost.style.width = `${duration * PIXELS_PER_MIN}px`;
+                ghost.style.display = 'block';
+            }
+            renderMatches();
+        }
+
+        function handleRowClick(e, pitchId) {
+            if(!selectedMatchKey) return;
+
+            // Calculate Time based on click X position
+            const rect = e.currentTarget.getBoundingClientRect();
+            const x = e.clientX - rect.left - 96; // - Sidebar
+            // Add scroll offset
+            const scrollLeft = document.getElementById('scrollContainer').scrollLeft;
+            // Actually, clientX is relative to viewport. 
+            // e.offsetX is safer relative to target, but target might be a match block if bubbled (we stopped prop, so ok).
+            // However, the Row element scrolls WITH the container content? No.
+            // The click event is on the Row Div inside the scroll container.
+            
+            // X is relative to the Row Div start.
+            // e.layerX is deprecated. e.offsetX is usually correct.
+            let clickX = e.offsetX;
+            // If we clicked label (width 96), subtract it
+            if(clickX < 0) clickX = 0; // Should be handled by layout
+
+            const minsFromStart = clickX / PIXELS_PER_MIN;
+            const totalMins = (START_HOUR * 60) + minsFromStart;
+            
+            // Round to nearest 5 mins
+            const roundedMins = Math.round(totalMins / 5) * 5;
+            const newTime = toTime(roundedMins);
+
+            // Update DB
+            update(ref(db, `tournaments/${eventId}/schedule/${selectedMatchKey}`), {
+                field: pitchId,
+                timeSlot: newTime
+            });
+
+            // Reset
+            selectedMatchKey = null;
+            document.getElementById('statusMsg').innerText = "Moved!";
+            document.getElementById('ghost').style.display = 'none';
+            setTimeout(() => {
+                document.getElementById('statusMsg').innerText = "Click a match to move it";
+                document.getElementById('statusMsg').className = "text-xs bg-slate-800 px-3 py-1.5 rounded text-slate-300 border border-slate-700";
+            }, 1000);
+        }
+
+        // --- HELPERS ---
+        const toMins = t => { const [h,m]=t.split(':').map(Number); return h*60+m; };
+        const toTime = m => { const h=Math.floor(m/60); const mn=m%60; return `${String(h).padStart(2,'0')}:${String(mn).padStart(2,'0')}`; };
+        
+        function isOverlap(m1, m2) {
+            const start1 = toMins(m1.timeSlot);
+            const end1 = start1 + (m1.duration || 30);
+            const start2 = toMins(m2.timeSlot);
+            const end2 = start2 + (m2.duration || 30);
+            return start1 < end2 && start2 < end1;
+        }
+
+        // Mouse Move for Ghost Effect
+        document.getElementById('pitchRows').addEventListener('mousemove', (e) => {
+            if(!selectedMatchKey) return;
+            // Naive ghost positioning
+            const ghost = document.getElementById('ghost');
+            // We want the ghost to follow mouse X, but snap to row Y?
+            // This is complex across elements. For now, simple ghost on click logic is enough.
+            // Let's just update Ghost X to show time snapping?
+            // (Skipping for brevity/stability in this iteration)
+        });
+
+    </script>
+</body>
+</html>
