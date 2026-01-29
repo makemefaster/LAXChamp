@@ -5,74 +5,272 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manager Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Pill Selection Styling */
+        .pill { cursor: pointer; user-select: none; transition: all 0.2s; }
+        .pill:hover { transform: scale(1.02); filter: brightness(95%); }
+        .pill.selected { 
+            background-color: #fbbf24 !important; /* Amber-400 */
+            color: black !important; 
+            border-color: #f59e0b !important; 
+            font-weight: 900;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transform: scale(1.05);
+        }
+    </style>
 </head>
-<body class="bg-slate-100 min-h-screen pb-24 font-sans">
-    <div class="bg-slate-900 text-white p-4 sticky top-0 z-50 shadow-lg flex justify-between">
-        <h1 class="font-bold">Event Manager</h1>
-        <div id="count" class="text-xs bg-blue-900 px-2 py-1 rounded">Loading...</div>
+<body class="bg-slate-100 min-h-screen pb-32 font-sans">
+
+    <div class="bg-slate-900 text-white p-4 sticky top-0 z-50 shadow-lg">
+        <div class="flex justify-between items-center mb-2">
+            <h1 class="font-bold text-lg flex items-center gap-2">
+                <a href="director.html" class="text-slate-400 hover:text-white">←</a>
+                Event Manager
+            </h1>
+            <div id="dbStatus" class="text-[10px] font-mono bg-blue-900 text-blue-200 px-2 py-1 rounded">Connecting...</div>
+        </div>
+        
+        <div class="flex justify-between items-center text-xs">
+            <span id="matchCountDisplay" class="text-slate-400">Loading matches...</span>
+            
+            <select id="pitchFilter" onchange="renderSchedule()" class="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-white outline-none">
+                <option value="all">All Pitches</option>
+                <option value="1">Pitch 1</option>
+                <option value="2">Pitch 2</option>
+                <option value="3">Pitch 3</option>
+                <option value="4">Pitch 4</option>
+            </select>
+        </div>
+        
+        <div id="swapStatus" class="hidden mt-2 text-xs font-bold text-yellow-400 bg-slate-800 p-2 rounded text-center animate-pulse">
+            Select second team to swap...
+        </div>
     </div>
 
-    <div class="max-w-md mx-auto p-4" id="matchGrid"></div>
+    <div class="max-w-md mx-auto p-4">
+
+        <div class="bg-white rounded-xl p-3 mb-6 border border-slate-200 shadow-sm">
+            <h2 class="text-[10px] font-bold uppercase text-slate-400 mb-2 tracking-wider">📢 Broadcast</h2>
+            <div class="flex gap-2">
+                <input type="text" id="alertMsg" placeholder="Alert Message..." class="flex-1 bg-slate-50 border rounded px-2 py-1 text-sm outline-none focus:border-indigo-500">
+                <button onclick="sendAlert()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 py-1 rounded text-xs transition">SEND</button>
+                <button onclick="clearAlert()" class="bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold px-3 py-1 rounded text-xs transition">CLR</button>
+            </div>
+        </div>
+
+        <div id="matchGrid" class="space-y-3">
+            </div>
+
+        <div id="errorLog" class="hidden mt-8 p-4 bg-red-50 text-red-600 text-xs font-mono border border-red-200 rounded"></div>
+
+    </div>
+
+    <button onclick="addMatch()" class="fixed bottom-6 right-6 bg-indigo-600 text-white w-14 h-14 rounded-full shadow-xl text-3xl flex items-center justify-center hover:bg-indigo-500 z-50 active:scale-90 transition">+</button>
 
     <script type="module">
-        import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+        import { getDatabase, ref, onValue, update, push, set, get } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
         import { app, db } from './firebase-config.js';
 
+        const auth = getAuth(app);
         const params = new URLSearchParams(window.location.search);
         const eventId = params.get('event');
+        
+        // GLOBAL STATE
+        let allMatches = []; // Store local copy for filtering
+        let swapSource = null; // Track the first team clicked
 
-        if(!eventId) alert("No Event ID");
+        if(!eventId) document.body.innerHTML = "<div class='p-10 text-center'>No Event ID</div>";
 
+        // 1. LISTEN TO DATABASE
         onValue(ref(db, `tournaments/${eventId}/schedule`), (snap) => {
+            const status = document.getElementById('dbStatus');
             const container = document.getElementById('matchGrid');
-            container.innerHTML = '';
             
             if(!snap.exists()) {
-                document.getElementById('count').innerText = "0 Matches";
-                container.innerHTML = "No matches found.";
+                status.innerText = "DB: Empty";
+                container.innerHTML = `<div class="text-center py-10 text-slate-400">No matches found.</div>`;
+                allMatches = [];
                 return;
             }
 
-            const matches = [];
-            snap.forEach(child => {
-                matches.push({ key: child.key, ...child.val() });
-            });
+            status.innerText = "DB: Connected";
+            status.className = "text-[10px] font-mono bg-green-900 text-green-200 px-2 py-1 rounded";
 
-            // Sort by Time
-            matches.sort((a,b) => (a.timeSlot + a.field).localeCompare(b.timeSlot + b.field));
-            
-            document.getElementById('count').innerText = `${matches.length} Matches`;
+            // Convert Object to Array
+            allMatches = [];
+            snap.forEach(c => allMatches.push({key: c.key, ...c.val()}));
 
-            matches.forEach(m => {
-                // Simple Render - No complex logic
-                const div = document.createElement('div');
-                div.className = "bg-white p-3 rounded shadow mb-2 border-l-4 border-indigo-500";
-                div.innerHTML = `
-                    <div class="flex justify-between font-bold text-sm mb-1">
-                        <span>${m.timeSlot} (Pitch ${m.field})</span>
-                        <span class="text-xs uppercase text-slate-400">${m.division}</span>
-                    </div>
-                    <div class="flex justify-between items-center text-lg">
-                        <span>${m.teamA}</span>
-                        <span class="text-sm text-slate-300">vs</span>
-                        <span>${m.teamB}</span>
-                    </div>
-                    <div class="mt-2 text-right">
-                        ${m.status === 'live' ? 
-                            '<span class="text-green-600 font-bold text-xs">● LIVE</span>' : 
-                            `<button onclick="goLive('${m.key}')" class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-xs font-bold">Start Match</button>`
-                        }
-                    </div>
-                `;
-                container.appendChild(div);
-            });
+            // Sort by Time -> Pitch
+            allMatches.sort((a,b) => (a.timeSlot + a.field).localeCompare(b.timeSlot + b.field));
+
+            renderSchedule();
+        }, (error) => {
+            document.getElementById('errorLog').innerText = error.message;
+            document.getElementById('errorLog').classList.remove('hidden');
         });
 
-        window.goLive = (key) => {
-            update(ref(db, `tournaments/${eventId}/schedule/${key}`), { status: 'live' });
-            // Also update the single 'match' node for the umpire view
-            // (Simplified for this fail-safe version)
+        // 2. RENDER FUNCTION
+        window.renderSchedule = () => {
+            const container = document.getElementById('matchGrid');
+            const filterVal = document.getElementById('pitchFilter').value;
+            const countDisplay = document.getElementById('matchCountDisplay');
+            
+            container.innerHTML = '';
+            
+            let visibleCount = 0;
+
+            allMatches.forEach(m => {
+                // Apply Filter
+                if (filterVal !== 'all' && String(m.field) !== filterVal) return;
+                visibleCount++;
+
+                // Check if this match is part of a swap selection
+                const isSelectedA = swapSource && swapSource.key === m.key && swapSource.field === 'teamA';
+                const isSelectedB = swapSource && swapSource.key === m.key && swapSource.field === 'teamB';
+                
+                // Division Color Logic
+                const divColor = (m.division || '').includes('2') ? 'text-orange-500' : 'text-indigo-500';
+
+                const card = document.createElement('div');
+                card.className = `bg-white border rounded-lg p-3 shadow-sm relative ${m.status === 'live' ? 'border-green-400 ring-1 ring-green-400' : 'border-slate-200'}`;
+                
+                card.innerHTML = `
+                    <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-50">
+                        <div class="flex flex-col gap-1">
+                            <span class="text-[10px] font-black uppercase ${divColor} tracking-wider">${m.division || 'DIV'}</span>
+                            <div class="flex items-center gap-2">
+                                <input type="time" value="${m.timeSlot}" onchange="updateProp('${m.key}', 'timeSlot', this.value)" 
+                                    class="bg-slate-100 border-none rounded px-2 py-1 text-xs font-bold text-slate-700 cursor-pointer w-20 hover:bg-slate-200 focus:ring-2 ring-indigo-200 outline-none">
+                                
+                                <div class="flex items-center text-[10px] text-slate-500 font-bold uppercase bg-slate-100 px-2 py-1 rounded">
+                                    Pitch <input type="number" value="${m.field}" onchange="updateProp('${m.key}', 'field', Number(this.value))" 
+                                        class="ml-1 bg-transparent w-4 text-center text-slate-900 border-b border-slate-300 focus:outline-none focus:border-indigo-500">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-2">
+                            ${m.status === 'live' 
+                                ? `<button onclick="stopGame('${m.key}')" class="text-[10px] font-bold bg-green-600 text-white px-3 py-1 rounded shadow-sm hover:bg-green-700 animate-pulse">ON AIR</button>` 
+                                : `<button onclick="goLive('${m.key}')" class="text-[10px] font-bold bg-slate-100 text-slate-500 px-3 py-1 rounded hover:bg-green-50 hover:text-green-600 border border-slate-200">GO LIVE</button>`
+                            }
+                            <button onclick="deleteMatch('${m.key}')" class="text-slate-300 hover:text-red-500 px-2 text-lg leading-none">×</button>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <div onclick="handleSwap('${m.key}', 'teamA', '${m.teamA}')" 
+                             class="pill ${isSelectedA ? 'selected' : ''} flex-1 bg-slate-50 border border-slate-200 rounded py-3 px-1 text-center text-sm font-bold text-slate-700 truncate">
+                             ${m.teamA}
+                        </div>
+                        
+                        <div class="flex flex-col items-center w-12 shrink-0">
+                            <span class="text-[10px] text-slate-300 font-bold mb-1">VS</span>
+                            <div class="text-xs font-mono bg-slate-50 px-2 py-0.5 rounded border border-slate-100 text-slate-500">
+                                ${m.scoreA}-${m.scoreB}
+                            </div>
+                        </div>
+                        
+                        <div onclick="handleSwap('${m.key}', 'teamB', '${m.teamB}')" 
+                             class="pill ${isSelectedB ? 'selected' : ''} flex-1 bg-slate-50 border border-slate-200 rounded py-3 px-1 text-center text-sm font-bold text-slate-700 truncate">
+                             ${m.teamB}
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            countDisplay.innerText = `${visibleCount} Matches`;
         };
+
+        // --- 3. ACTIONS ---
+
+        // LIVE EDITING (Time/Pitch)
+        window.updateProp = (key, field, val) => {
+            update(ref(db, `tournaments/${eventId}/schedule/${key}`), { [field]: val });
+        };
+
+        // SWAP LOGIC
+        window.handleSwap = (key, field, currentTeamName) => {
+            const statusBox = document.getElementById('swapStatus');
+            
+            if (swapSource === null) {
+                // SELECT FIRST
+                swapSource = { key, field, name: currentTeamName };
+                statusBox.innerText = `Selected: ${currentTeamName}. Tap another team to swap.`;
+                statusBox.classList.remove('hidden');
+                renderSchedule(); // Re-render to show yellow highlight
+            } else {
+                // SWAP EXECUTION
+                if (swapSource.key === key && swapSource.field === field) {
+                    // Cancel if clicking same pill
+                    swapSource = null;
+                    statusBox.classList.add('hidden');
+                    renderSchedule();
+                    return;
+                }
+
+                const target = { key, field, name: currentTeamName };
+                
+                const updates = {};
+                updates[`tournaments/${eventId}/schedule/${swapSource.key}/${swapSource.field}`] = target.name;
+                updates[`tournaments/${eventId}/schedule/${target.key}/${target.field}`] = swapSource.name;
+
+                update(ref(db), updates).then(() => {
+                    swapSource = null;
+                    statusBox.innerText = "Swap Complete!";
+                    setTimeout(() => statusBox.classList.add('hidden'), 1500);
+                    renderSchedule();
+                });
+            }
+        };
+
+        // GO LIVE LOGIC
+        window.goLive = async (key) => {
+            const snap = await get(ref(db, `tournaments/${eventId}/schedule/${key}`));
+            const m = snap.val();
+            
+            // 1. Update the Main Scoreboard Node
+            update(ref(db, `tournaments/${eventId}/match`), {
+                teamA: m.teamA, teamB: m.teamB, scoreA: m.scoreA, scoreB: m.scoreB,
+                time: m.timeRemaining || 1200, isRunning: false, scheduleKey: key,
+                division: m.division || '', isFinal: false
+            });
+
+            // 2. Mark this match as 'live' in the schedule (Green Border)
+            // First, reset any other 'live' matches to 'scheduled' or 'finished'? 
+            // For now, let's just set this one to live. 
+            // Optionally: loop through allMatches and set others to 'scheduled' if they were 'live'?
+            // Let's keep it simple:
+            update(ref(db, `tournaments/${eventId}/schedule/${key}`), { status: 'live' });
+        };
+
+        window.stopGame = (key) => {
+            if(confirm("Stop broadcasting this match?")) {
+                update(ref(db, `tournaments/${eventId}/schedule/${key}`), { status: 'scheduled' }); // or 'paused'
+                update(ref(db, `tournaments/${eventId}/match`), { isRunning: false });
+            }
+        };
+
+        window.deleteMatch = (key) => { 
+            if(confirm("Delete this match?")) set(ref(db, `tournaments/${eventId}/schedule/${key}`), null); 
+        };
+
+        window.addMatch = () => {
+            push(ref(db, `tournaments/${eventId}/schedule`), {
+                timeSlot: "09:00", field: 1, teamA: "New Team A", teamB: "New Team B", 
+                division: "Unassigned", scoreA: 0, scoreB: 0, status: "scheduled"
+            });
+        };
+
+        // BROADCAST
+        window.sendAlert = () => {
+            const msg = document.getElementById('alertMsg').value;
+            if(msg) set(ref(db, `tournaments/${eventId}/alert`), { message: msg, type: 'info' });
+        };
+        window.clearAlert = () => set(ref(db, `tournaments/${eventId}/alert`), null);
+
     </script>
 </body>
 </html>
