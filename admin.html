@@ -10,79 +10,104 @@
         .step.active { display: block; animation: fadein 0.4s; }
         @keyframes fadein { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
         .option-card { transition: all 0.2s; border: 2px solid transparent; }
-        .option-card:hover { transform: translateY(-2px); shadow: lg; }
+        .option-card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
         .option-card.recommended { border-color: #22c55e; background-color: #f0fdf4; }
+        .option-card.tight { border-color: #f59e0b; background-color: #fffbeb; }
+        .option-card.impossible { border-color: #ef4444; background-color: #fef2f2; opacity: 0.5; filter: grayscale(1); pointer-events: none; }
+        
+        /* Custom Scrollbar */
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen p-6 font-sans text-slate-800">
+<body class="bg-slate-50 min-h-screen p-4 md:p-8 font-sans text-slate-800">
 
-    <div class="max-w-4xl mx-auto bg-white shadow-2xl rounded-2xl border border-slate-100 overflow-hidden">
+    <div class="max-w-6xl mx-auto bg-white shadow-2xl rounded-2xl border border-slate-100 overflow-hidden flex flex-col h-[90vh]">
         
-        <div class="bg-slate-900 text-white p-6 flex justify-between items-center">
+        <div class="bg-slate-900 text-white p-6 flex justify-between items-center shrink-0">
             <div>
-                <h1 class="text-2xl font-black">Tournament Consultant</h1>
-                <p class="text-slate-400 text-sm">Design your perfect schedule.</p>
+                <h1 class="text-2xl font-black">Tournament Director</h1>
+                <p class="text-slate-400 text-sm">Constraint-based Format Engine</p>
             </div>
-            <div class="text-xs font-bold uppercase tracking-widest bg-slate-800 px-3 py-1 rounded">Step <span id="stepNum">1</span>/3</div>
+            <div class="text-xs font-bold uppercase tracking-widest bg-slate-800 px-3 py-1 rounded border border-slate-700">
+                Step <span id="stepNum">1</span>/3
+            </div>
         </div>
 
-        <div class="p-8">
+        <div class="flex-1 overflow-y-auto p-8 custom-scroll">
 
-            <div id="step1" class="step active">
-                <h2 class="font-bold text-xl mb-6 text-indigo-600">1. The Basics</h2>
+            <div id="step1" class="step active max-w-3xl mx-auto">
+                <h2 class="font-bold text-xl mb-6 text-indigo-600">1. Define Constraints</h2>
                 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                     <div>
-                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Total Teams</label>
+                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Total Teams (Est.)</label>
                         <input type="number" id="teamCount" value="12" class="w-full p-4 border rounded-xl font-bold text-lg bg-slate-50 focus:ring-2 ring-indigo-500 outline-none">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Pitches</label>
+                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Pitches Available</label>
                         <input type="number" id="pitchCount" value="3" class="w-full p-4 border rounded-xl font-bold text-lg bg-slate-50 focus:ring-2 ring-indigo-500 outline-none">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Divisions</label>
-                        <input type="number" id="divCount" value="2" class="w-full p-4 border rounded-xl font-bold text-lg bg-slate-50 focus:ring-2 ring-indigo-500 outline-none">
-                        <p class="text-[10px] text-slate-400 mt-1">e.g. U15 and U18</p>
+                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Max Time (Hours)</label>
+                        <input type="number" id="hoursAvailable" value="4" class="w-full p-4 border rounded-xl font-bold text-lg bg-slate-50 focus:ring-2 ring-indigo-500 outline-none">
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4 mb-4">
-                    <div>
-                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Game Length (Mins)</label>
-                        <input type="number" id="gameDur" value="30" class="w-full p-3 border rounded font-bold">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Changeover (Mins)</label>
-                        <input type="number" id="breakDur" value="7" class="w-full p-3 border rounded font-bold">
+                <div class="bg-slate-50 p-6 rounded-xl border border-slate-100 mb-8">
+                    <h3 class="text-xs font-bold uppercase text-slate-400 mb-4">Schedule settings</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Game Mins</label>
+                            <input type="number" id="gameDur" value="15" class="w-full p-3 border rounded font-bold">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Break Mins</label>
+                            <input type="number" id="breakDur" value="5" class="w-full p-3 border rounded font-bold">
+                        </div>
                     </div>
                 </div>
 
-                <button onclick="calculateOptions()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl text-lg shadow-lg transition transform active:scale-95">Analyze & Suggest Formats ✨</button>
+                <button onclick="calculateOptions()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl text-lg shadow-lg transition transform active:scale-[0.98]">
+                    Analyze & Suggest Formats ⚡
+                </button>
             </div>
 
             <div id="step2" class="step">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="font-bold text-xl text-indigo-600">2. Recommended Formats</h2>
-                    <button onclick="changeStep(1)" class="text-sm text-slate-400 hover:text-indigo-500">← Change Inputs</button>
+                <div class="flex justify-between items-center mb-6 sticky top-0 bg-white z-10 py-2 border-b">
+                    <h2 class="font-bold text-xl text-indigo-600">2. Select Format</h2>
+                    <button onclick="changeStep(1)" class="text-sm text-slate-400 hover:text-indigo-500 font-bold">← Edit Constraints</button>
                 </div>
-                
-                <div id="optionsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    </div>
+                <div id="optionsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pb-10"></div>
             </div>
 
-            <div id="step3" class="step">
-                <h2 class="font-bold text-xl mb-4 text-indigo-600">3. Enter Teams</h2>
+            <div id="step3" class="step max-w-4xl mx-auto">
+                <h2 class="font-bold text-xl mb-4 text-indigo-600">3. Configure Divisions</h2>
                 
-                <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-xl mb-6">
-                    <p class="text-sm text-indigo-800 font-bold" id="chosenFormatDisplay">--</p>
-                    <p class="text-xs text-indigo-600 mt-1" id="chosenDetailsDisplay">--</p>
+                <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-xl mb-6 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="text-3xl" id="chosenIcon">🏆</div>
+                        <div>
+                            <p class="text-sm text-indigo-900 font-bold" id="chosenFormatDisplay">--</p>
+                            <p class="text-xs text-indigo-600 mt-1" id="chosenDetailsDisplay">--</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-indigo-100">
+                        <span class="text-xs font-bold uppercase text-slate-400">Flow:</span>
+                        <select id="scheduleFlow" class="text-sm font-bold text-indigo-700 bg-transparent outline-none">
+                            <option value="zipper">🔄 Interwoven (A, B, A, B)</option>
+                            <option value="block">🧱 Sequential (All A, then All B)</option>
+                        </select>
+                    </div>
                 </div>
 
-                <div id="divisionInputs" class="space-y-4 mb-6">
+                <div id="divisionInputs" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                     </div>
 
-                <button id="genBtn" onclick="generateFinal()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl text-lg shadow-lg">Generate Schedule 🚀</button>
+                <button id="genBtn" onclick="generateFinal()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl text-lg shadow-lg transition transform active:scale-[0.98]">
+                    Launch Tournament 🚀
+                </button>
             </div>
 
         </div>
@@ -96,7 +121,6 @@
         const auth = getAuth(app);
         const params = new URLSearchParams(window.location.search);
         const eventId = params.get('event');
-        
         let config = {}; 
 
         if(!eventId) window.location.href="director.html";
@@ -108,175 +132,165 @@
             document.getElementById('stepNum').innerText = n;
         };
 
-        // --- CALCULATOR ---
+        // --- 1. CALCULATOR (Unchanged) ---
         window.calculateOptions = () => {
-            const teamTotal = parseInt(document.getElementById('teamCount').value);
-            const divCount = parseInt(document.getElementById('divCount').value);
-            const pitches = parseInt(document.getElementById('pitchCount').value);
+            const N = parseInt(document.getElementById('teamCount').value) || 0;
+            const P = parseInt(document.getElementById('pitchCount').value) || 1;
+            const H = parseFloat(document.getElementById('hoursAvailable').value) || 1;
             const slotDur = parseInt(document.getElementById('gameDur').value) + parseInt(document.getElementById('breakDur').value);
-            const teamsPerDiv = Math.ceil(teamTotal / divCount);
-            
+            const limitMins = H * 60;
+
             const grid = document.getElementById('optionsGrid');
             grid.innerHTML = '';
+            const add = (opt) => addOptionCard(opt, N, P, slotDur, limitMins);
 
-            const matchesPerDiv = (teamsPerDiv * (teamsPerDiv - 1)) / 2;
-            const blockTime = Math.ceil(matchesPerDiv / pitches) * slotDur;
+            // The Great 8
+            add({ title: "Full League", icon: "📊", type: 'league', param: 1, desc: "1 Division. Everyone plays everyone.", matches: (N*(N-1))/2 });
             
-            addOptionCard({
-                title: "Blocked Schedule",
-                icon: "🧱",
-                desc: `Finish Division 1 before starting Division 2.`,
-                detail: `Good for separate arrival times.`,
-                mins: blockTime * divCount,
-                type: 'block',
-                param: divCount
-            });
+            const g2Size = Math.ceil(N/2);
+            const g2Games = 2 * ((g2Size*(g2Size-1))/2);
+            add({ title: "2 Divisions + Final", icon: "⚔️", type: 'groups_final', param: 2, desc: "2 pools (e.g. Pro / U15). Winners play final.", matches: g2Games + 1 });
+            
+            const g4Size = Math.ceil(N/4);
+            const g4Games = 4 * ((g4Size*(g4Size-1))/2);
+            add({ title: "4 Divisions + Semis", icon: "🏆", type: 'world_cup', param: 4, desc: "4 pools. Top teams advance.", matches: g4Games + 3 });
 
-            if(divCount >= 2) {
-                addOptionCard({
-                    title: "Weaved / Interleaved",
-                    icon: "🧶",
-                    desc: `Alternate divisions (A-B-A-B).`,
-                    detail: `Built-in rest periods. Keeps pitches full.`,
-                    mins: blockTime * divCount,
-                    type: 'weave',
-                    param: divCount,
-                    recommended: true
-                });
-            }
+            add({ title: "Waterfall", icon: "🌊", type: 'waterfall', param: 2, desc: "2 pools. Everyone plays placement finals.", matches: g2Games + (N/2) });
+            add({ title: "Swiss System", icon: "♟️", type: 'swiss', param: 1, desc: "1 big pool. 4 Rounds balanced.", matches: (N*4)/2 });
+            add({ title: "Cup & Plate", icon: "🍽️", type: 'cup_plate', param: 1, desc: "Knockout. Losers drop to Plate.", matches: (N-1) + (N/2 - 1) });
+            add({ title: "Knockout", icon: "🥊", type: 'knockout', param: 1, desc: "Single elim. Fastest.", matches: N-1 });
+            add({ title: "Double Elim", icon: "🛡️", type: 'double_elim', param: 1, desc: "Must lose twice.", matches: (2*N)-1 });
 
             changeStep(2);
         };
 
-        function addOptionCard({ title, icon, desc, detail, mins, type, param, recommended }) {
+        function addOptionCard(opt, N, P, slotDur, limit) {
+            const totalMins = Math.ceil(opt.matches / P) * slotDur;
+            const percent = Math.round((totalMins / limit) * 100);
+            const isPossible = totalMins <= limit;
+            
             const div = document.createElement('div');
-            div.className = `option-card bg-white p-6 rounded-xl border shadow-sm relative cursor-pointer ${recommended ? 'recommended' : ''}`;
-            div.onclick = () => selectFormat(type, param, title);
-
+            div.className = `option-card bg-white p-4 rounded-xl border shadow-sm relative cursor-pointer flex flex-col justify-between h-48 ${isPossible ? 'recommended' : 'impossible'}`;
+            div.onclick = () => { if(isPossible) selectFormat(opt); };
             div.innerHTML = `
-                <div class="flex justify-between items-start mb-2">
-                    <div class="text-3xl">${icon}</div>
-                    <div class="text-right">
-                        <span class="block text-2xl font-black text-slate-800">${Math.floor(mins/60)}h ${mins%60}m</span>
-                    </div>
+                <div>
+                    <div class="flex justify-between items-start mb-2"><div class="text-3xl">${opt.icon}</div><div class="text-right"><span class="block text-lg font-black ${isPossible?'':'text-red-400'}">${Math.floor(totalMins/60)}h ${totalMins%60}m</span></div></div>
+                    <h3 class="font-bold text-md leading-tight">${opt.title}</h3>
+                    <p class="text-xs text-slate-500 mt-1 leading-snug">${opt.desc}</p>
                 </div>
-                <h3 class="font-bold text-lg mb-1">${title}</h3>
-                <p class="text-sm text-slate-500 mb-2">${desc}</p>
-                <p class="text-xs text-indigo-600 bg-indigo-50 p-2 rounded">${detail}</p>
-                ${recommended ? '<div class="absolute top-2 right-2 text-[10px] bg-green-500 text-white px-2 py-1 rounded-full font-bold">RECOMMENDED</div>' : ''}
+                <div class="mt-2"><div class="w-full bg-slate-100 rounded-full h-1.5 mb-2 overflow-hidden"><div class="h-full ${isPossible?'bg-green-500':'bg-red-500'}" style="width:${Math.min(percent,100)}%"></div></div><div class="flex justify-between text-[10px] uppercase font-bold text-slate-400"><span>${opt.matches} Games</span><span>${percent}% Cap</span></div></div>
             `;
             document.getElementById('optionsGrid').appendChild(div);
         }
 
-        window.selectFormat = (type, param, title) => {
-            config = { type, param, title };
-            document.getElementById('chosenFormatDisplay').innerText = title;
-            document.getElementById('chosenDetailsDisplay').innerText = `Setup for ${param} Divisions`;
-
+        // --- 2. DYNAMIC INPUT GENERATOR (NEW!) ---
+        window.selectFormat = (opt) => {
+            config = opt;
+            document.getElementById('chosenFormatDisplay').innerText = opt.title;
+            document.getElementById('chosenDetailsDisplay').innerText = opt.desc;
+            document.getElementById('chosenIcon').innerText = opt.icon;
+            
             const container = document.getElementById('divisionInputs');
             container.innerHTML = '';
-            for(let i=1; i<=param; i++) {
-                container.innerHTML += `
-                    <div class="bg-slate-50 p-3 rounded border">
-                        <div class="flex justify-between mb-1">
-                            <input type="text" id="divName${i}" value="${i===1?'U15':(i===2?'U18':`Div ${i}`)}" class="bg-transparent font-bold text-sm">
-                            <span id="count${i}" class="text-[10px] text-slate-400 font-bold uppercase">0 Teams</span>
-                        </div>
-                        <textarea id="divTeams${i}" oninput="updateCount(${i})" placeholder="Paste Teams Here" class="w-full p-2 text-sm border rounded h-24 font-mono"></textarea>
-                    </div>
+
+            // Generate Input Boxes based on "Param" (Number of groups)
+            const count = opt.param || 1;
+            
+            for(let i=0; i<count; i++) {
+                const defaultName = (count === 1) ? "League Division" : (i === 0 ? "Pro League" : (i === 1 ? "U15s" : `Group ${String.fromCharCode(65+i)}`));
+                
+                const box = document.createElement('div');
+                box.className = "bg-slate-50 border p-4 rounded-xl";
+                box.innerHTML = `
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Division ${i+1} Name</label>
+                    <input type="text" id="divName_${i}" value="${defaultName}" class="w-full mb-3 p-2 border rounded font-bold text-slate-700 focus:border-indigo-500 outline-none">
+                    
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Teams (One per line)</label>
+                    <textarea id="divTeams_${i}" class="w-full h-32 p-2 border rounded text-xs font-mono focus:border-indigo-500 outline-none" placeholder="Team A\nTeam B..."></textarea>
                 `;
+                container.appendChild(box);
             }
+
             changeStep(3);
         };
 
-        // --- HELPER TO COUNT TEAMS LIVE ---
-        window.updateCount = (i) => {
-            const raw = document.getElementById(`divTeams${i}`).value;
-            // Clean split: remove quotes, newlines, commas
-            const teams = raw.replace(/"/g, '').split(/[\n,]+/).map(t=>t.trim()).filter(t=>t.length > 1);
-            const badge = document.getElementById(`count${i}`);
-            badge.innerText = `${teams.length} Teams`;
-            
-            if(teams.length < 2) { badge.classList.add('text-red-500'); badge.classList.remove('text-green-500'); }
-            else { badge.classList.remove('text-red-500'); badge.classList.add('text-green-500'); }
-        };
-
-        // --- GENERATOR ---
+        // --- 3. GENERATOR & SCHEDULER ---
         window.generateFinal = async () => {
             const btn = document.getElementById('genBtn');
+            btn.innerText = "Processing..."; btn.disabled = true;
+
             const slotDur = parseInt(document.getElementById('gameDur').value) + parseInt(document.getElementById('breakDur').value);
             const pitchCount = parseInt(document.getElementById('pitchCount').value);
+            const flow = document.getElementById('scheduleFlow').value; // 'zipper' or 'block'
             
-            // 1. GATHER TEAMS
-            let divisions = [];
-            let totalTeams = 0;
+            let matchPools = [];
+
+            // 1. READ INPUTS & GENERATE MATCHES PER DIVISION
+            const divCount = config.param || 1;
             
-            for(let i=1; i<=config.param; i++) {
-                const name = document.getElementById(`divName${i}`).value;
-                const raw = document.getElementById(`divTeams${i}`).value;
-                // CLEAN INPUT: Remove quotes, extra spaces
-                const teams = raw.replace(/"/g, '').split(/[\n,]+/).map(t=>t.trim()).filter(t=>t.length > 1);
+            for(let i=0; i<divCount; i++) {
+                const divName = document.getElementById(`divName_${i}`).value || `Div ${i+1}`;
+                const rawTeams = document.getElementById(`divTeams_${i}`).value.split(/[\n,]+/).map(t=>t.trim()).filter(t=>t);
                 
-                if(teams.length < 2) return alert(`Division "${name}" has less than 2 teams. Please check your list.`);
-                
-                divisions.push({ name, teams });
-                totalTeams += teams.length;
+                if(rawTeams.length < 2 && divCount === 1) { alert("Need 2+ teams"); btn.disabled=false; return; }
+                if(rawTeams.length < 2) continue; // Skip empty boxes
+
+                let pool = [];
+
+                // LEAGUE / GROUPS LOGIC
+                if (['league', 'groups_final', 'world_cup', 'waterfall'].includes(config.type)) {
+                    for(let a=0; a<rawTeams.length; a++) 
+                        for(let b=a+1; b<rawTeams.length; b++) 
+                            pool.push({ teamA:rawTeams[a], teamB:rawTeams[b], division:divName, type:'group' });
+                }
+                // KNOCKOUT / SWISS LOGIC (Simplified: R1 only)
+                else {
+                    for(let a=0; a<rawTeams.length; a+=2) 
+                        pool.push({ teamA:rawTeams[a], teamB:rawTeams[a+1]||"BYE", division:divName, type:'ko' });
+                }
+                matchPools.push(pool);
             }
 
-            if(!confirm(`Ready to generate schedule for ${totalTeams} teams across ${divisions.length} divisions?`)) return;
-
-            btn.innerText = "Generating..."; btn.disabled = true;
-
-            // 2. BUILD MATCHES
-            let allMatches = [];
-            divisions.forEach(div => {
-                for(let i=0; i<div.teams.length; i++) {
-                    for(let j=i+1; j<div.teams.length; j++) {
-                        allMatches.push({ 
-                            teamA: div.teams[i], teamB: div.teams[j], 
-                            division: div.name, status: 'scheduled', scoreA:0, scoreB:0 
-                        });
-                    }
+            // 2. MERGE LOGIC (ZIPPER vs BLOCK)
+            let finalMatches = [];
+            
+            if(flow === 'block') {
+                // Sequential: Pool A, then Pool B
+                matchPools.forEach(p => finalMatches.push(...p));
+            } else {
+                // Interwoven: A[0], B[0], A[1], B[1]
+                let maxLength = Math.max(...matchPools.map(p => p.length));
+                for(let i=0; i<maxLength; i++) {
+                    matchPools.forEach(p => { if(p[i]) finalMatches.push(p[i]); });
                 }
-            });
-
-            // 3. WEAVE LOGIC
-            if(config.type === 'weave') {
-                const matchesByDiv = {};
-                divisions.forEach(d => matchesByDiv[d.name] = allMatches.filter(m => m.division === d.name));
-                
-                let weaved = [];
-                // Calculate max matches in any single division
-                const maxLen = Math.max(...Object.values(matchesByDiv).map(arr => arr.length));
-                
-                for(let i=0; i<maxLen; i++) {
-                    divisions.forEach(d => {
-                        const m = matchesByDiv[d.name][i];
-                        if(m) weaved.push(m);
-                    });
-                }
-                allMatches = weaved;
             }
 
-            // 4. ASSIGN PITCHES
+            // 3. ADD PLACEHOLDERS (Finals etc)
+            // (Appending to end so they happen last)
+            if(config.type === 'groups_final') finalMatches.push({teamA:"Winner Div 1", teamB:"Winner Div 2", division:"Final", type:'final'});
+            // Add other placeholders as needed...
+
+            // 4. SCHEDULE (Card Dealer)
             const scheduleRef = ref(db, `tournaments/${eventId}/schedule`);
             await set(scheduleRef, null);
 
-            let pitchTimes = Array(pitchCount).fill(9 * 60 + 40); // 09:40 Start
+            let pitchTimes = Array(pitchCount).fill(9 * 60); 
             const toTime = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
-            
-            const promises = allMatches.map(m => {
+
+            const promises = finalMatches.map((m, i) => {
                 let pIdx = 0;
                 for(let p=1; p<pitchCount; p++) if(pitchTimes[p] < pitchTimes[pIdx]) pIdx = p;
                 
                 m.field = pIdx + 1;
                 m.timeSlot = toTime(pitchTimes[pIdx]);
+                m.scoreA = 0; m.scoreB = 0; m.status = 'scheduled';
                 
                 pitchTimes[pIdx] += slotDur;
                 return push(scheduleRef, m);
             });
 
-            await set(ref(db, `tournaments/${eventId}/match`), { teamA:"TBD", teamB:"TBD", scoreA:0, scoreB:0, isRunning:false });
+            await set(ref(db, `tournaments/${eventId}/match`), { teamA:"--", teamB:"--", scoreA:0, scoreB:0, isRunning:false });
+
             Promise.all(promises).then(() => window.location.href = `manage.html?event=${eventId}`);
         };
     </script>
