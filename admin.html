@@ -41,12 +41,11 @@
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                     <div>
                         <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Total Teams</label>
-                        <input type="number" id="teamCount" value="12" class="w-full p-4 border rounded-xl font-bold text-lg bg-slate-50 focus:ring-2 ring-indigo-500 outline-none transition">
+                        <input type="number" id="teamCount" value="6" class="w-full p-4 border rounded-xl font-bold text-lg bg-slate-50 focus:ring-2 ring-indigo-500 outline-none transition">
                     </div>
                     <div>
                         <label class="block text-xs font-bold uppercase text-indigo-500 mb-1">Divisions</label>
                         <input type="number" id="divCountInput" value="1" min="1" class="w-full p-4 border-2 border-indigo-100 rounded-xl font-bold text-lg bg-indigo-50 text-indigo-900 focus:ring-2 ring-indigo-500 outline-none transition">
-                        <p class="text-[10px] text-slate-400 mt-1">e.g. 3 for U13, U15, U18</p>
                     </div>
                     <div>
                         <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Pitches</label>
@@ -83,8 +82,7 @@
                     <button onclick="changeStep(1)" class="text-sm text-slate-400 hover:text-indigo-500 font-bold">← Edit Constraints</button>
                 </div>
                 
-                <div id="optionsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-10">
-                    </div>
+                <div id="optionsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-10"></div>
             </div>
 
             <div id="step3" class="step max-w-4xl mx-auto">
@@ -109,9 +107,33 @@
 
                 <div id="divisionInputs" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8"></div>
 
-                <button id="genBtn" onclick="generateFinal()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl text-lg shadow-lg transition transform active:scale-[0.98]">
-                    Launch Tournament 🚀
+                <button id="previewBtn" onclick="generatePreview()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl text-lg shadow-lg mb-6">
+                    Preview Schedule (Verify Math) 👁️
                 </button>
+
+                <div id="previewContainer" class="hidden border-t pt-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-lg">Schedule Preview</h3>
+                        <span id="previewCount" class="bg-indigo-100 text-indigo-800 px-2 py-1 rounded text-xs font-bold">0 Matches</span>
+                    </div>
+                    
+                    <div class="bg-slate-50 border rounded-xl overflow-hidden max-h-60 overflow-y-auto mb-6">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-slate-200 text-xs uppercase font-bold text-slate-500">
+                                <tr>
+                                    <th class="p-3">Time</th>
+                                    <th class="p-3">Pitch</th>
+                                    <th class="p-3">Matchup</th>
+                                </tr>
+                            </thead>
+                            <tbody id="previewBody" class="divide-y divide-slate-200"></tbody>
+                        </table>
+                    </div>
+
+                    <button id="uploadBtn" onclick="confirmUpload()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl text-lg shadow-lg">
+                        Looks Good - Upload to Database ✅
+                    </button>
+                </div>
             </div>
 
         </div>
@@ -126,6 +148,7 @@
         const params = new URLSearchParams(window.location.search);
         const eventId = params.get('event');
         let config = {}; 
+        let pendingMatches = []; // Store calculated matches here before uploading
 
         if(!eventId) window.location.href="director.html";
         onAuthStateChanged(auth, u=>{if(!u)window.location.href="director.html"});
@@ -149,45 +172,22 @@
             grid.innerHTML = '';
             const add = (opt) => addOptionCard(opt, N, P, slotDur, limitMins);
 
-            // --- USER PREFERENCE (CUSTOM DIVISIONS) ---
             if (Divs > 1) {
-                // Calculate Average Teams per Division
                 const avgTeams = Math.ceil(N / Divs);
-                // Calc matches per division (League style)
                 const divMatches = (avgTeams * (avgTeams - 1)) / 2;
                 const totalCustomMatches = divMatches * Divs;
 
-                add({
-                    title: `${Divs} Separate Leagues`,
-                    icon: "🗂️",
-                    type: 'league',
-                    param: Divs,
-                    desc: `Perfect for U13, U15, Pro etc. (${avgTeams} teams each).`,
-                    matches: totalCustomMatches
-                });
-
-                add({
-                    title: `${Divs} Divisions + Finals`,
-                    icon: "⚔️",
-                    type: 'groups_final',
-                    param: Divs,
-                    desc: `Group stages, then Winners play off.`,
-                    matches: totalCustomMatches + (Divs - 1) // Approx knockout games
-                });
+                add({ title: `${Divs} Leagues`, icon: "🗂️", type: 'league', param: Divs, desc: `Separate leagues.`, matches: totalCustomMatches });
+                add({ title: `${Divs} Divs + Final`, icon: "⚔️", type: 'groups_final', param: Divs, desc: `Group stages -> Finals.`, matches: totalCustomMatches + (Divs - 1) });
             } else {
-                // STANDARD OPTIONS (Single Pool logic)
-                add({ title: "Full League", icon: "📊", type: 'league', param: 1, desc: "1 big pool. Everyone plays everyone.", matches: (N*(N-1))/2 });
-                add({ title: "Swiss System", icon: "♟️", type: 'swiss', param: 1, desc: "4 Rounds. Winners play winners.", matches: (N*4)/2 });
-                add({ title: "Knockout Cup", icon: "🥊", type: 'knockout', param: 1, desc: "Single elimination.", matches: N-1 });
+                add({ title: "Full League", icon: "📊", type: 'league', param: 1, desc: "Everyone plays everyone.", matches: (N*(N-1))/2 });
+                add({ title: "Swiss System", icon: "♟️", type: 'swiss', param: 1, desc: "4 Rounds.", matches: (N*4)/2 });
+                add({ title: "Knockout", icon: "🥊", type: 'knockout', param: 1, desc: "Single elim.", matches: N-1 });
             }
 
-            // AUTO-SUGGESTIONS (Alternatives)
-            const g4Size = Math.ceil(N/4);
-            const g4Games = 4 * ((g4Size*(g4Size-1))/2);
-            add({ title: "World Cup (4 Grps)", icon: "🏆", type: 'world_cup', param: 4, desc: "4 Groups -> Semis -> Final.", matches: g4Games + 3 });
-            
-            add({ title: "Cup & Plate", icon: "🍽️", type: 'cup_plate', param: 1, desc: "Losers drop to Plate tournament.", matches: (N-1) + (N/2 - 1) });
-            add({ title: "Double Elim", icon: "🛡️", type: 'double_elim', param: 1, desc: "Must lose twice to be out.", matches: (2*N)-1 });
+            add({ title: "World Cup (4 Grps)", icon: "🏆", type: 'world_cup', param: 4, desc: "Groups -> Semis.", matches: 24 }); // Approx
+            add({ title: "Cup & Plate", icon: "🍽️", type: 'cup_plate', param: 1, desc: "Losers -> Plate.", matches: N + (N/2) });
+            add({ title: "Double Elim", icon: "🛡️", type: 'double_elim', param: 1, desc: "Lose twice.", matches: (2*N)-1 });
 
             changeStep(2);
         };
@@ -211,7 +211,6 @@
             document.getElementById('optionsGrid').appendChild(div);
         }
 
-        // --- 2. DYNAMIC INPUTS ---
         window.selectFormat = (opt) => {
             config = opt;
             document.getElementById('chosenFormatDisplay').innerText = opt.title;
@@ -223,7 +222,7 @@
             const count = opt.param || 1;
             
             for(let i=0; i<count; i++) {
-                const defaultName = (count === 1) ? "League Division" : (i === 0 ? "Pro League" : (i === 1 ? "U15s" : `Division ${i+1}`));
+                const defaultName = (count === 1) ? "League" : `Division ${i+1}`;
                 const box = document.createElement('div');
                 box.className = "bg-slate-50 border p-4 rounded-xl";
                 box.innerHTML = `
@@ -237,98 +236,93 @@
             changeStep(3);
         };
 
-        // --- 3. CONFLICT-AWARE ENGINE ---
-        window.generateFinal = async () => {
-            const btn = document.getElementById('genBtn');
-            btn.innerText = "Processing..."; btn.disabled = true;
+        // --- 3. GENERATE PREVIEW (No Upload Yet) ---
+        window.generatePreview = () => {
+            pendingMatches = [];
+            const slotDur = parseInt(document.getElementById('gameDur').value) + parseInt(document.getElementById('breakDur').value);
+            const pitchCount = parseInt(document.getElementById('pitchCount').value);
+            const flow = document.getElementById('scheduleFlow').value;
+            const divCount = config.param || 1;
+            let matchPools = [];
 
-            try {
-                const slotDur = parseInt(document.getElementById('gameDur').value) + parseInt(document.getElementById('breakDur').value);
-                const pitchCount = parseInt(document.getElementById('pitchCount').value);
-                const flow = document.getElementById('scheduleFlow').value;
-                const divCount = config.param || 1;
-                let matchPools = [];
-
-                // A. Harvest Teams
-                for(let i=0; i<divCount; i++) {
-                    const divName = document.getElementById(`divName_${i}`).value;
-                    const rawTeams = document.getElementById(`divTeams_${i}`).value.split(/[\n,]+/).map(t=>t.trim()).filter(t=>t);
-                    
-                    if(rawTeams.length > 1) {
-                        let pool = [];
-                        // Logic based on type
-                        if (['league', 'groups_final', 'world_cup', 'waterfall'].includes(config.type)) {
-                            for(let a=0; a<rawTeams.length; a++) 
-                                for(let b=a+1; b<rawTeams.length; b++) 
-                                    pool.push({ teamA:rawTeams[a], teamB:rawTeams[b], division:divName, type:'group' });
-                        } else {
-                            for(let a=0; a<rawTeams.length; a+=2) 
-                                pool.push({ teamA:rawTeams[a], teamB:rawTeams[a+1]||"BYE", division:divName, type:'ko' });
-                        }
-                        matchPools.push(pool);
-                    }
-                }
-
-                if(matchPools.length === 0) throw new Error("Please enter teams.");
-
-                // B. Zipper Merge
-                let finalMatches = [];
-                if(flow === 'block') {
-                    matchPools.forEach(p => finalMatches.push(...p));
-                } else {
-                    let maxLength = Math.max(...matchPools.map(p => p.length));
-                    for(let i=0; i<maxLength; i++) {
-                        matchPools.forEach(p => { if(p[i]) finalMatches.push(p[i]); });
-                    }
-                }
+            // A. Create Matches
+            for(let i=0; i<divCount; i++) {
+                const divName = document.getElementById(`divName_${i}`).value;
+                const rawTeams = document.getElementById(`divTeams_${i}`).value.split(/[\r\n,]+/).map(t=>t.trim()).filter(t=>t);
                 
-                // Add Finals if needed
-                if(config.type === 'groups_final') finalMatches.push({teamA:"Winner Div 1", teamB:"Winner Div 2", division:"Final", type:'final'});
-
-                // C. PHYSICS SCHEDULER (Anti-Conflict)
-                const scheduleRef = ref(db, `tournaments/${eventId}/schedule`);
-                await set(scheduleRef, null);
-
-                let pitchAvail = Array(pitchCount).fill(0); 
-                let teamAvail = {}; // Tracks when a team is free
-                const START = 9 * 60; 
-                const toTime = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
-
-                const promises = finalMatches.map(m => {
-                    const tA = teamAvail[m.teamA] || 0;
-                    const tB = teamAvail[m.teamB] || 0;
-                    const ready = Math.max(tA, tB); // Earliest both are free
-
-                    // Find pitch earliest available AFTER 'ready'
-                    let bestP = -1; 
-                    let bestT = Infinity;
-
-                    for(let p=0; p<pitchCount; p++) {
-                        let possibleStart = Math.max(pitchAvail[p], ready);
-                        if(possibleStart < bestT) { bestT = possibleStart; bestP = p; }
+                if(rawTeams.length > 1) {
+                    let pool = [];
+                    if (['league', 'groups_final', 'world_cup', 'waterfall'].includes(config.type)) {
+                        for(let a=0; a<rawTeams.length; a++) 
+                            for(let b=a+1; b<rawTeams.length; b++) 
+                                pool.push({ teamA:rawTeams[a], teamB:rawTeams[b], division:divName, type:'group' });
+                    } else {
+                        for(let a=0; a<rawTeams.length; a+=2) 
+                            pool.push({ teamA:rawTeams[a], teamB:rawTeams[a+1]||"BYE", division:divName, type:'ko' });
                     }
-
-                    m.field = bestP + 1;
-                    m.timeSlot = toTime(START + bestT);
-                    m.scoreA = 0; m.scoreB = 0; m.status = 'scheduled';
-
-                    // Update Locks
-                    const finish = bestT + slotDur;
-                    pitchAvail[bestP] = finish;
-                    teamAvail[m.teamA] = finish;
-                    teamAvail[m.teamB] = finish;
-
-                    return push(scheduleRef, m);
-                });
-
-                await set(ref(db, `tournaments/${eventId}/match`), { teamA:"--", teamB:"--", scoreA:0, scoreB:0, isRunning:false });
-                await Promise.all(promises);
-                window.location.href = `manage.html?event=${eventId}`;
-
-            } catch (e) {
-                alert(e.message);
-                btn.disabled = false;
+                    matchPools.push(pool);
+                }
             }
+
+            if(matchPools.length === 0) return alert("Please enter at least 2 teams.");
+
+            // B. Merge & Assign Times
+            let finalMatches = [];
+            if(flow === 'block') matchPools.forEach(p => finalMatches.push(...p));
+            else {
+                let max = Math.max(...matchPools.map(p => p.length));
+                for(let i=0; i<max; i++) matchPools.forEach(p => { if(p[i]) finalMatches.push(p[i]); });
+            }
+
+            if(config.type === 'groups_final') finalMatches.push({teamA:"Winner A", teamB:"Winner B", division:"Final", type:'final'});
+
+            // C. Schedule (Simple Card Dealer for Reliability)
+            let pitchTimes = Array(pitchCount).fill(9 * 60); 
+            const toTime = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+
+            finalMatches.forEach((m, idx) => {
+                // Find earliest pitch
+                let pIdx = 0;
+                for(let p=1; p<pitchCount; p++) if(pitchTimes[p] < pitchTimes[pIdx]) pIdx = p;
+                
+                m.field = pIdx + 1;
+                m.timeSlot = toTime(pitchTimes[pIdx]);
+                m.scoreA = 0; m.scoreB = 0; m.status = 'scheduled';
+                
+                pitchTimes[pIdx] += slotDur;
+                pendingMatches.push(m);
+            });
+
+            // D. Render to Table
+            const tbody = document.getElementById('previewBody');
+            tbody.innerHTML = '';
+            pendingMatches.forEach(m => {
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-100">
+                        <td class="p-2 border-b font-mono text-xs">${m.timeSlot}</td>
+                        <td class="p-2 border-b text-xs font-bold">P${m.field}</td>
+                        <td class="p-2 border-b text-xs">${m.teamA} vs ${m.teamB} <span class="text-slate-400">(${m.division})</span></td>
+                    </tr>`;
+            });
+
+            document.getElementById('previewCount').innerText = `${pendingMatches.length} Matches`;
+            document.getElementById('previewContainer').classList.remove('hidden');
+            document.getElementById('previewBtn').classList.add('hidden');
+        };
+
+        // --- 4. CONFIRM & UPLOAD ---
+        window.confirmUpload = async () => {
+            const btn = document.getElementById('uploadBtn');
+            btn.innerText = "Uploading to Database..."; btn.disabled = true;
+
+            const scheduleRef = ref(db, `tournaments/${eventId}/schedule`);
+            await set(scheduleRef, null); // Wipe old
+
+            const promises = pendingMatches.map(m => push(scheduleRef, m));
+            await set(ref(db, `tournaments/${eventId}/match`), { teamA:"--", teamB:"--", scoreA:0, scoreB:0, isRunning:false });
+            
+            await Promise.all(promises);
+            window.location.href = `manage.html?event=${eventId}`;
         };
     </script>
 </body>
