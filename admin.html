@@ -20,18 +20,20 @@
 <div class="wizard-container">
     <div id="step1" class="step active">
         <h1>Sport Selection</h1>
+        <p style="color:#666; font-size:0.9rem; margin-bottom:15px">Select a sport to apply rules:</p>
         <div class="sport-grid">
             <div class="sport-card" onclick="selectSport('lacrosse')">🥍 Lacrosse</div>
             <div class="sport-card" onclick="selectSport('soccer')">⚽ Soccer</div>
             <div class="sport-card" onclick="selectSport('basketball')">🏀 Basketball</div>
             <div class="sport-card" onclick="selectSport('rugby')">🏉 Rugby</div>
         </div>
+        <div id="sportError" style="color:red; font-size:0.8rem; margin-top:10px; display:none;">Please select a sport first.</div>
     </div>
 
     <div id="step2" class="step">
         <h1>Settings</h1>
-        <label>Game Duration</label><input type="number" id="gameDuration">
-        <label>Break Time</label><input type="number" id="breakDuration">
+        <label>Game Duration (mins)</label><input type="number" id="gameDuration">
+        <label>Break Time (mins)</label><input type="number" id="breakDuration">
         <label>Fields</label><input type="number" id="fieldCount" value="1">
         <button onclick="changeStep(1)" style="margin-top:10px">Back</button>
         <button onclick="changeStep(3)" style="margin-top:10px; background:var(--primary); color:white">Next</button>
@@ -39,22 +41,21 @@
 
     <div id="step3" class="step">
         <h1>Teams</h1>
-        <input type="text" id="divNameInput" placeholder="Division Name">
-        <input type="text" id="teamsInput" placeholder="Teams (comma separated)">
+        <input type="text" id="divNameInput" placeholder="Division Name (e.g. Varsity)">
+        <input type="text" id="teamsInput" placeholder="Teams (e.g. Tigers, Lions, Bears)">
         <button onclick="addDivision()" style="background:#28a745; color:white; width:100%; margin-top:10px">+ Add Division</button>
-        <div id="divisionList" style="margin:10px 0"></div>
+        <div id="divisionList" style="margin:10px 0; font-size:0.9rem; color:#555;"></div>
         <button id="genBtn" onclick="finishSetup()" style="background:var(--primary); color:white; width:100%; margin-top:20px">Generate Schedule</button>
     </div>
 
     <div id="step4" class="step">
         <h1 style="color:green">Success!</h1>
-        <p>Schedule generated for this event.</p>
-        <a href="director.html">Return to Dashboard</a>
+        <p>Schedule generated successfully.</p>
+        <a href="manage.html" id="manageLink" style="display:block; margin-top:20px; text-decoration:underline; font-weight:bold;">Go to Event Manager</a>
     </div>
 </div>
 
 <script type="module">
-    // 1. ADDED AUTH IMPORTS HERE so the DB knows who you are
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
     import { getDatabase, ref, set, push } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
     import { app, db } from './firebase-config.js';
@@ -63,15 +64,14 @@
     const params = new URLSearchParams(window.location.search);
     const eventId = params.get('event');
 
-    // 2. CHECK LOGIN STATUS
+    // Link fix for step 4
+    if(eventId) document.getElementById('manageLink').href = `manage.html?event=${eventId}`;
+
     onAuthStateChanged(auth, (user) => {
-        if (!user) {
-            alert("You must be logged in to edit tournaments.");
-            window.location.href = "director.html";
-        }
+        if (!user) { alert("Please log in via Director Portal"); window.location.href = "director.html"; }
     });
 
-    if(!eventId) { alert("Access via Director Portal"); window.location.href = "director.html"; }
+    if(!eventId) { alert("No Event ID"); window.location.href = "director.html"; }
 
     let tournamentData = { sport: '', settings: {}, divisions: [] };
     const presets = { lacrosse: {d:60,b:10}, soccer: {d:90,b:15}, basketball: {d:40,b:10}, rugby: {d:14,b:2} };
@@ -80,27 +80,38 @@
         tournamentData.sport = s;
         document.querySelectorAll('.sport-card').forEach(e=>e.classList.remove('selected'));
         event.target.classList.add('selected');
+        document.getElementById('sportError').style.display = 'none';
+        
         document.getElementById('gameDuration').value = presets[s].d;
         document.getElementById('breakDuration').value = presets[s].b;
         setTimeout(()=>changeStep(2), 200);
     };
 
     window.changeStep = (n) => {
+        // Validation for Step 1
+        if(n === 2 && !tournamentData.sport) {
+            document.getElementById('sportError').style.display = 'block';
+            return;
+        }
         document.querySelectorAll('.step').forEach(e=>e.classList.remove('active'));
         document.getElementById(`step${n}`).classList.add('active');
     };
 
     window.addDivision = () => {
         const name = document.getElementById('divNameInput').value;
-        const teams = document.getElementById('teamsInput').value.split(',').map(t=>t.trim());
-        if(!name || !teams[0]) return;
+        const teams = document.getElementById('teamsInput').value.split(',').map(t=>t.trim()).filter(t=>t);
+        
+        if(!name || teams.length < 2) return alert("Need a division name and at least 2 teams!");
+        
         tournamentData.divisions.push({name, teams});
         document.getElementById('divisionList').innerHTML += `<div><b>${name}</b>: ${teams.length} teams</div>`;
         document.getElementById('divNameInput').value = '';
+        document.getElementById('teamsInput').value = '';
     };
 
-    // 3. UPDATED TO HANDLE ERRORS
     window.finishSetup = () => {
+        if(tournamentData.divisions.length === 0) return alert("Add at least one division!");
+
         const btn = document.getElementById('genBtn');
         btn.innerText = "Generating...";
         btn.disabled = true;
@@ -135,17 +146,9 @@
         // Init Live Match
         promises.push(set(matchRef, { teamA:"TBD", teamB:"TBD", scoreA:0, scoreB:0, time:0, isRunning:false, sport:tournamentData.sport }));
 
-        // Wait for DB to confirm save
         Promise.all(promises)
-            .then(() => {
-                changeStep(4); // Only show success if it worked
-            })
-            .catch((error) => {
-                console.error(error);
-                alert("Error saving schedule: " + error.code);
-                btn.innerText = "Try Again";
-                btn.disabled = false;
-            });
+            .then(() => changeStep(4))
+            .catch((e) => { alert("Error: " + e.code); btn.disabled = false; });
     };
 </script>
 </body>
