@@ -35,12 +35,12 @@
                 <div class="format-card p-6 rounded-xl relative" onclick="selectFormat('league', this)">
                     <div class="text-3xl mb-2">📊</div>
                     <h3 class="font-bold text-lg">League / Round Robin</h3>
-                    <p class="text-xs text-slate-500 mt-2">Every team plays every other team in their division. Best for group stages.</p>
+                    <p class="text-xs text-slate-500 mt-2">All play all. Best for group stages.</p>
                 </div>
                 <div class="format-card p-6 rounded-xl relative" onclick="selectFormat('knockout', this)">
                     <div class="text-3xl mb-2">🥊</div>
                     <h3 class="font-bold text-lg">Single Elimination</h3>
-                    <p class="text-xs text-slate-500 mt-2">Bracket style. Lose and go home. (Generates pairs).</p>
+                    <p class="text-xs text-slate-500 mt-2">Lose and go home.</p>
                 </div>
             </div>
             <input type="hidden" id="selectedFormat">
@@ -49,27 +49,27 @@
 
         <div id="step2" class="step">
             <h2 class="font-bold text-lg mb-4 text-indigo-600">2. Match Timings</h2>
-            <div class="grid grid-cols-2 gap-4 mb-4">
+            
+            <div class="grid grid-cols-2 gap-4 mb-4 bg-slate-50 p-4 rounded-xl border">
                 <div>
-                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Period Structure</label>
-                    <select id="periodFormat" class="w-full p-3 bg-slate-50 border rounded font-bold">
-                        <option value="2">Halves</option>
-                        <option value="4">Quarters</option>
-                        <option value="1">Single Block</option>
-                    </select>
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Game Time (Mins)</label>
+                    <input type="number" id="gameTime" value="20" class="w-full p-2 border rounded text-sm" onchange="calcSlot()">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Mins per Period</label>
-                    <input type="number" id="periodDur" value="20" class="w-full p-3 bg-slate-50 border rounded font-bold">
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Break/Changeover</label>
+                    <input type="number" id="breakTime" value="5" class="w-full p-2 border rounded text-sm" onchange="calcSlot()">
                 </div>
             </div>
+
             <div class="mb-6">
-                <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Total Slot Duration (Mins)</label>
-                <input type="number" id="slotDur" value="60" class="w-full p-3 bg-slate-50 border rounded font-bold text-lg text-indigo-700">
-                <p class="text-[10px] text-slate-400 mt-1">
-                    ℹ️ How often does the whistle blow for the next game? (Includes play time + half time + changeover).
-                </p>
+                <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Total Schedule Slot (Mins)</label>
+                <div class="flex items-center gap-2">
+                    <input type="number" id="slotDur" value="25" class="w-full p-3 bg-indigo-50 border border-indigo-200 rounded font-bold text-lg text-indigo-700">
+                    <button onclick="calcSlot()" class="bg-indigo-100 text-indigo-600 p-3 rounded font-bold text-xs hover:bg-indigo-200">↺ Recalc</button>
+                </div>
+                <p class="text-[10px] text-slate-400 mt-1">This is the interval used for the schedule (e.g. 09:00, 09:25, 09:50).</p>
             </div>
+
             <div class="flex gap-2">
                 <button onclick="changeStep(1)" class="w-1/3 bg-slate-200 font-bold py-3 rounded-xl">Back</button>
                 <button onclick="changeStep(3)" class="w-2/3 bg-slate-800 text-white font-bold py-3 rounded-xl">Next: Pitches</button>
@@ -77,13 +77,21 @@
         </div>
 
         <div id="step3" class="step">
-            <h2 class="font-bold text-lg mb-4 text-indigo-600">3. Pitch Availability</h2>
-            <p class="text-xs text-slate-500 mb-4">Define available hours for each pitch. The scheduler will fill these slots automatically.</p>
+            <h2 class="font-bold text-lg mb-2 text-indigo-600">3. Pitch Setup</h2>
             
-            <div id="pitchList" class="space-y-3 mb-4">
+            <div class="flex items-end gap-2 mb-4 bg-slate-50 p-3 rounded-xl border">
+                <div class="flex-1">
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1">How many pitches?</label>
+                    <input type="number" id="bulkCount" value="3" class="w-full p-2 border rounded font-bold">
                 </div>
+                <div class="flex-1">
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Start Time</label>
+                    <input type="time" id="bulkStart" value="09:00" class="w-full p-2 border rounded">
+                </div>
+                <button onclick="bulkSetPitches()" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded hover:bg-indigo-500 mb-[1px]">Set Pitches</button>
+            </div>
 
-            <button onclick="addPitchRow()" class="w-full border-2 border-dashed border-slate-300 text-slate-500 font-bold py-2 rounded-xl hover:bg-slate-50 mb-6">+ Add Another Pitch</button>
+            <div id="pitchList" class="space-y-2 mb-6 max-h-60 overflow-y-auto pr-2"></div>
 
             <div class="flex gap-2">
                 <button onclick="changeStep(2)" class="w-1/3 bg-slate-200 font-bold py-3 rounded-xl">Back</button>
@@ -119,19 +127,14 @@
         const params = new URLSearchParams(window.location.search);
         const eventId = params.get('event');
 
-        // Validation
         if(!eventId) window.location.href = "director.html";
         onAuthStateChanged(auth, u => { if(!u) window.location.href="director.html"; });
 
         // STATE
         const divisions = [];
-        let pitches = [
-            { id: 1, start: "09:00", end: "17:00" },
-            { id: 2, start: "09:00", end: "17:00" }
-        ];
+        let pitches = [];
 
-        // --- UI LOGIC ---
-
+        // --- UI HELPERS ---
         window.selectFormat = (fmt, el) => {
             document.getElementById('selectedFormat').value = fmt;
             document.querySelectorAll('.format-card').forEach(c => c.classList.remove('selected'));
@@ -145,7 +148,22 @@
             document.getElementById('stepNum').innerText = n;
         };
 
-        // --- PITCH LOGIC ---
+        window.calcSlot = () => {
+            const game = parseInt(document.getElementById('gameTime').value) || 0;
+            const brk = parseInt(document.getElementById('breakTime').value) || 0;
+            document.getElementById('slotDur').value = game + brk;
+        };
+
+        // --- PITCH LOGIC (Robust) ---
+        window.bulkSetPitches = () => {
+            const count = parseInt(document.getElementById('bulkCount').value);
+            const start = document.getElementById('bulkStart').value;
+            pitches = [];
+            for(let i=0; i<count; i++) {
+                pitches.push({ id: i+1, start: start, end: "18:00" });
+            }
+            renderPitches();
+        };
 
         window.renderPitches = () => {
             const container = document.getElementById('pitchList');
@@ -154,60 +172,36 @@
                 const div = document.createElement('div');
                 div.className = "flex items-center gap-2 bg-slate-100 p-2 rounded-lg";
                 div.innerHTML = `
-                    <span class="font-bold text-xs bg-slate-200 px-2 py-1 rounded w-16 text-center">Pitch ${idx+1}</span>
-                    <input type="time" value="${p.start}" onchange="updatePitch(${idx}, 'start', this.value)" class="p-1 border rounded text-xs">
+                    <span class="font-bold text-xs bg-slate-200 px-2 py-1 rounded w-16 text-center">Pitch ${p.id}</span>
+                    <input type="time" value="${p.start}" onchange="pitches[${idx}].start = this.value" class="p-1 border rounded text-xs">
                     <span class="text-xs text-slate-400">to</span>
-                    <input type="time" value="${p.end}" onchange="updatePitch(${idx}, 'end', this.value)" class="p-1 border rounded text-xs">
-                    <button onclick="removePitch(${idx})" class="text-red-400 hover:text-red-600 ml-auto px-2">×</button>
+                    <input type="time" value="${p.end}" onchange="pitches[${idx}].end = this.value" class="p-1 border rounded text-xs">
                 `;
                 container.appendChild(div);
             });
         };
 
-        window.addPitchRow = () => {
-            pitches.push({ id: pitches.length + 1, start: "09:00", end: "17:00" });
-            renderPitches();
-        };
+        // Initialize default
+        window.bulkSetPitches(); 
 
-        window.removePitch = (idx) => {
-            if(pitches.length <= 1) return alert("Need at least 1 pitch!");
-            pitches.splice(idx, 1);
-            renderPitches();
-        };
-
-        window.updatePitch = (idx, field, val) => {
-            pitches[idx][field] = val;
-        };
-
-        // Init Pitch UI
-        renderPitches();
-
-
-        // --- TEAM LOGIC ---
+        // --- TEAMS ---
         window.addDivision = () => {
             const name = document.getElementById('divName').value;
             const teams = document.getElementById('teamList').value.split('\n').map(t=>t.trim()).filter(t=>t);
             if(!name || teams.length < 2) return alert("Need name and 2+ teams");
             divisions.push({ name, teams });
-            
-            const div = document.createElement('div');
-            div.className = "bg-white p-3 border rounded shadow-sm flex justify-between";
-            div.innerHTML = `<span><strong>${name}</strong></span> <span class="bg-slate-100 px-2 rounded text-xs py-1">${teams.length} Teams</span>`;
-            document.getElementById('divisionDisplay').appendChild(div);
-            
-            document.getElementById('divName').value = ''; 
-            document.getElementById('teamList').value = '';
+            document.getElementById('divisionDisplay').innerHTML += `<div class="bg-white p-3 border rounded shadow-sm"><strong>${name}</strong>: ${teams.length} Teams</div>`;
+            document.getElementById('divName').value = ''; document.getElementById('teamList').value = '';
         };
 
-        // --- SCHEDULING ENGINE ---
-        
-        // Helper: Convert "09:30" to minutes (e.g. 570)
+        // --- THE ENGINE ---
+        // Converts "09:30" -> 570 minutes
         const toMins = (t) => {
             const [h, m] = t.split(':').map(Number);
             return (h * 60) + m;
         };
 
-        // Helper: Convert minutes to "09:30"
+        // Converts 570 -> "09:30"
         const toTime = (m) => {
             const h = Math.floor(m / 60);
             const mn = m % 60;
@@ -215,8 +209,7 @@
         };
 
         window.generate = async () => {
-            if(divisions.length === 0) return alert("Add at least one division");
-            
+            if(divisions.length === 0) return alert("Add a division first!");
             const btn = document.getElementById('genBtn');
             btn.innerText = "Calculating...";
             btn.disabled = true;
@@ -224,74 +217,61 @@
             const format = document.getElementById('selectedFormat').value;
             const slotDur = parseInt(document.getElementById('slotDur').value);
 
-            // 1. Save Settings
-            await set(ref(db, `tournaments/${eventId}/settings`), {
-                format, slotDur, 
-                periodFormat: document.getElementById('periodFormat').value,
-                periodDur: document.getElementById('periodDur').value
-            });
-
-            // 2. Build Match Queue
+            // 1. Build Match Queue
             let matchQueue = [];
-            
-            if (format === 'league') {
-                // Round Robin Logic
-                divisions.forEach(div => {
+            divisions.forEach(div => {
+                if (format === 'league') {
                     for(let i=0; i<div.teams.length; i++) {
                         for(let j=i+1; j<div.teams.length; j++) {
                             matchQueue.push({ teamA: div.teams[i], teamB: div.teams[j], division: div.name, status: 'scheduled', scoreA:0, scoreB:0 });
                         }
                     }
-                });
-            } else {
-                // Knockout (Simple Pairs)
-                divisions.forEach(div => {
-                    const t = div.teams;
-                    for(let i=0; i<t.length; i+=2) {
-                        const teamA = t[i];
-                        const teamB = t[i+1] || "BYE";
-                        matchQueue.push({ teamA, teamB, division: div.name, status: 'scheduled', scoreA:0, scoreB:0, type: 'knockout' });
+                } else {
+                    for(let i=0; i<div.teams.length; i+=2) {
+                        matchQueue.push({ teamA: div.teams[i], teamB: div.teams[i+1]||"BYE", division: div.name, status: 'scheduled', scoreA:0, scoreB:0 });
                     }
-                });
-            }
+                }
+            });
 
-            // 3. The "Tetris" Engine
-            // Track the "Next Available Minute" for each pitch
-            let pitchTracker = pitches.map(p => ({
+            // 2. Setup Pitch Trackers
+            // Each pitch keeps track of its "next available minute"
+            let pitchTrackers = pitches.map(p => ({
                 id: p.id,
-                currentMins: toMins(p.start),
-                endMins: toMins(p.end),
-                idx: pitches.indexOf(p) + 1 // 1-based index
+                nextFree: toMins(p.start),
+                closeTime: toMins(p.end)
             }));
 
             const scheduleRef = ref(db, `tournaments/${eventId}/schedule`);
-            await set(scheduleRef, null); 
+            await set(scheduleRef, null); // Clear old
 
             const promises = matchQueue.map(match => {
-                // Find pitch with EARLIEST availability that hasn't exceeded its end time
-                // Sort trackers by currentMins
-                pitchTracker.sort((a,b) => a.currentMins - b.currentMins);
+                // Find the pitch with the EARLIEST free time
+                // Filter out pitches that are already closed (freeTime + gameDuration > closeTime)
+                
+                // Sort by earliest available time
+                pitchTrackers.sort((a,b) => a.nextFree - b.nextFree);
                 
                 // Pick the first one that fits
-                let selectedPitch = pitchTracker.find(p => (p.currentMins + slotDur) <= p.endMins);
+                let selectedPitch = pitchTrackers.find(p => (p.nextFree + slotDur) <= p.closeTime);
 
-                if(!selectedPitch) {
-                    // All pitches full/closed? Just assign to Pitch 1 at the end of the day (Edge case)
-                    selectedPitch = pitchTracker[0]; 
-                }
+                // If all full, force overbook the last one (fallback)
+                if(!selectedPitch) selectedPitch = pitchTrackers[0];
 
                 // Assign
-                match.timeSlot = toTime(selectedPitch.currentMins);
-                match.field = selectedPitch.idx;
+                match.timeSlot = toTime(selectedPitch.nextFree);
+                match.field = selectedPitch.id;
                 
-                // Update Pitch Availability
-                selectedPitch.currentMins += slotDur;
+                // Update tracker
+                selectedPitch.nextFree += slotDur;
 
                 return push(scheduleRef, match);
             });
 
             // Init Live Match
             await set(ref(db, `tournaments/${eventId}/match`), { teamA:"TBD", teamB:"TBD", scoreA:0, scoreB:0, isRunning:false });
+            
+            // Save Settings
+            await set(ref(db, `tournaments/${eventId}/settings`), { format, slotDur });
 
             Promise.all(promises).then(() => {
                 window.location.href = `review.html?event=${eventId}`;
