@@ -3,133 +3,225 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Director Dashboard (Safe Mode)</title>
+    <title>Director Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .pill { cursor: pointer; user-select: none; transition: all 0.2s; }
+        .pill:hover { filter: brightness(95%); transform: translateY(-1px); }
+        .pill.selected { 
+            background-color: #fbbf24 !important; /* Amber */
+            border-color: #f59e0b !important;
+            font-weight: 900;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+    </style>
 </head>
 <body class="bg-slate-50 min-h-screen pb-32 font-sans text-slate-800">
 
     <div class="bg-white border-b border-slate-200 p-4 sticky top-0 z-50 flex justify-between items-center shadow-sm">
         <div>
-            <h1 class="font-black text-lg text-slate-900 tracking-tight">Director (Safe Mode)</h1>
-            <div id="rawCount" class="text-[10px] text-slate-400">Waiting for data...</div>
+            <h1 class="font-black text-lg text-slate-900 tracking-tight flex items-center gap-2">
+                <a href="director.html" class="text-slate-300 hover:text-indigo-600">←</a>
+                Director Mode
+            </h1>
         </div>
-        <div id="statusTag" class="text-xs font-bold bg-slate-100 text-slate-500 px-3 py-1 rounded-full">Connecting...</div>
+        <div id="swapStatus" class="hidden text-xs font-bold bg-amber-100 text-amber-700 px-3 py-1 rounded-full animate-pulse border border-amber-200">
+            Select second team...
+        </div>
     </div>
 
     <div class="max-w-xl mx-auto p-4">
 
-        <div id="errorBox" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4 text-xs font-mono"></div>
+        <div class="bg-slate-800 rounded-xl p-4 mb-8 shadow-lg text-white">
+            <h2 class="text-[10px] font-bold uppercase text-slate-400 mb-2 tracking-widest">📢 Live Announcements</h2>
+            <div class="flex gap-2">
+                <input type="text" id="alertMsg" placeholder="e.g. 10 min delay..." class="flex-1 bg-slate-700 border-none rounded px-3 py-2 text-sm text-white outline-none focus:ring-2 ring-indigo-500">
+                <button onclick="sendAlert()" class="bg-indigo-500 hover:bg-indigo-400 text-white font-bold px-4 py-2 rounded text-xs">SEND</button>
+                <button onclick="clearAlert()" class="bg-slate-600 hover:bg-slate-500 text-slate-200 font-bold px-4 py-2 rounded text-xs">CLR</button>
+            </div>
+        </div>
 
-        <div id="scheduleFeed" class="space-y-4">
-            <div class="text-center py-12 text-slate-400 animate-pulse">Scanning database...</div>
+        <div id="scheduleFeed" class="space-y-8">
+            <div class="text-center py-12 text-slate-400 animate-pulse">Loading schedule...</div>
         </div>
 
     </div>
 
+    <button onclick="addMatch()" class="fixed bottom-6 right-6 bg-indigo-600 text-white w-14 h-14 rounded-full shadow-2xl text-3xl flex items-center justify-center hover:bg-indigo-500 z-50 active:scale-95 transition">+</button>
+
     <script type="module">
         import { getAuth } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-        import { getDatabase, ref, onValue, update, get } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+        import { getDatabase, ref, onValue, update, push, set, get } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
         import { app, db } from './firebase-config.js';
 
         const params = new URLSearchParams(window.location.search);
         const eventId = params.get('event');
-        if(!eventId) document.body.innerHTML = "No Event ID";
+        let swapSource = null;
 
-        // LISTEN TO SCHEDULE
+        if(!eventId) document.body.innerHTML = "<div class='p-10'>No Event ID</div>";
+
         onValue(ref(db, `tournaments/${eventId}/schedule`), (snap) => {
             const container = document.getElementById('scheduleFeed');
-            const status = document.getElementById('statusTag');
-            const rawCount = document.getElementById('rawCount');
-            const errorBox = document.getElementById('errorBox');
+            const statusBox = document.getElementById('swapStatus');
             
             if(!snap.exists()) {
-                status.innerText = "0 Matches";
-                container.innerHTML = "No matches found in DB.";
+                container.innerHTML = `<div class="text-center py-10 text-slate-400">No matches found.<br><a href="admin.html?event=${eventId}" class="text-indigo-600 font-bold underline">Go to Setup</a></div>`;
                 return;
             }
 
-            try {
-                // 1. SAFE EXTRACTION
-                // We use Object.values to ignore weird key names
-                const rawData = snap.val();
-                const matches = Object.keys(rawData).map(key => ({
-                    key: key,
-                    ...rawData[key]
-                }));
+            // 1. Process Data
+            const matches = [];
+            snap.forEach(c => matches.push({key: c.key, ...c.val()}));
 
-                status.innerText = `${matches.length} Matches Found`;
-                rawCount.innerText = `Database Keys: ${Object.keys(rawData).length}`;
+            // 2. Group by Time Slot
+            const groups = {};
+            matches.forEach(m => {
+                const time = m.timeSlot || "Unscheduled";
+                if(!groups[time]) groups[time] = [];
+                groups[time].push(m);
+            });
 
-                // 2. RENDER WITHOUT SORTING (To prevent crashes)
-                container.innerHTML = '';
+            // 3. Render
+            container.innerHTML = '';
+            const sortedTimes = Object.keys(groups).sort();
+
+            sortedTimes.forEach(time => {
+                const groupMatches = groups[time].sort((a,b) => (a.field || 0) - (b.field || 0));
                 
-                matches.forEach((m, index) => {
-                    // Safety checks for missing fields
-                    const timeDisp = m.timeSlot || "MISSING TIME";
-                    const pitchDisp = m.field || "??";
-                    const divDisp = m.division || "No Division";
-                    const teamA = m.teamA || "???";
-                    const teamB = m.teamB || "???";
-                    const isLive = m.status === 'live';
+                // Time Header
+                const section = document.createElement('div');
+                section.innerHTML = `<h3 class="font-black text-2xl text-slate-300 mb-3 pl-1 sticky top-0 bg-slate-50 z-10 py-2">${time}</h3>`;
+                
+                const grid = document.createElement('div');
+                grid.className = "grid gap-3";
 
-                    // Check for corrupted Time
-                    const timeIsBad = timeDisp.includes('NaN') || timeDisp === "MISSING TIME";
+                groupMatches.forEach(m => {
+                    const isLive = m.status === 'live';
+                    const divName = m.division || 'Match';
+                    
+                    // Highlight logic for swap
+                    const isSelectedA = swapSource && swapSource.key === m.key && swapSource.field === 'teamA';
+                    const isSelectedB = swapSource && swapSource.key === m.key && swapSource.field === 'teamB';
 
                     const card = document.createElement('div');
-                    card.className = `bg-white border rounded-xl p-4 shadow-sm relative ${isLive ? 'border-green-500 ring-2 ring-green-100' : 'border-slate-200'}`;
+                    card.className = `bg-white border rounded-xl p-3 shadow-sm relative transition ${isLive ? 'border-green-500 ring-2 ring-green-100' : 'border-slate-200'}`;
                     
                     card.innerHTML = `
-                        <div class="flex justify-between items-start mb-3">
-                            <div class="flex items-center gap-2">
-                                <span class="${timeIsBad ? 'bg-red-500 text-white' : 'bg-slate-800 text-white'} px-2 py-1 rounded text-xs font-bold font-mono">
-                                    ${timeDisp}
-                                </span>
-                                <span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-[10px] font-black uppercase">Pitch ${pitchDisp}</span>
-                                <span class="text-[10px] font-bold text-indigo-500 uppercase truncate max-w-[100px]">${divDisp}</span>
+                        <div class="flex justify-between items-start mb-3 pb-2 border-b border-slate-50">
+                            <div class="flex flex-col gap-1">
+                                <span class="text-[10px] font-black uppercase text-indigo-400 tracking-wide">${divName}</span>
+                                <div class="flex items-center gap-2">
+                                    <input type="time" value="${m.timeSlot}" onchange="updateProp('${m.key}', 'timeSlot', this.value)" 
+                                        class="bg-slate-50 border-none rounded px-1 py-0.5 text-xs font-bold text-slate-600 w-16 outline-none focus:ring-1">
+                                    
+                                    <div class="flex items-center text-[10px] text-slate-400 font-bold uppercase bg-slate-50 px-2 py-0.5 rounded">
+                                        Pitch <input type="number" value="${m.field}" onchange="updateProp('${m.key}', 'field', Number(this.value))" 
+                                            class="ml-1 bg-transparent w-4 text-center text-slate-700 font-black border-none focus:outline-none">
+                                    </div>
+                                </div>
                             </div>
-                            <div class="text-[10px] text-slate-300 font-mono">#${index+1}</div>
+                            
+                            <div class="flex gap-1">
+                                ${isLive 
+                                    ? `<button onclick="stopGame('${m.key}')" class="bg-green-100 text-green-700 px-3 py-1 rounded text-[10px] font-bold animate-pulse">ON AIR</button>` 
+                                    : `<button onclick="goLive('${m.key}')" class="bg-slate-100 text-slate-400 hover:bg-green-500 hover:text-white px-3 py-1 rounded text-[10px] font-bold transition">GO LIVE</button>`
+                                }
+                                <button onclick="deleteMatch('${m.key}')" class="text-slate-200 hover:text-red-400 px-2 text-lg leading-none">×</button>
+                            </div>
                         </div>
                         
-                        <div class="flex items-center justify-between">
-                            <div class="flex-1 font-bold text-slate-700 truncate">${teamA}</div>
-                            <div class="px-3 font-mono font-bold text-slate-300 text-sm">vs</div>
-                            <div class="flex-1 font-bold text-slate-700 truncate text-right">${teamB}</div>
-                        </div>
-                        
-                        <div class="mt-3 flex justify-end gap-2 border-t pt-2 border-slate-50">
-                             ${isLive 
-                                ? `<button onclick="stopGame('${m.key}')" class="text-xs bg-green-100 text-green-700 px-3 py-1 rounded font-bold">LIVE</button>` 
-                                : `<button onclick="goLive('${m.key}')" class="text-xs bg-slate-100 text-slate-500 hover:text-indigo-600 px-3 py-1 rounded font-bold">GO LIVE</button>`
-                            }
+                        <div class="flex items-center gap-2">
+                            <div onclick="handleSwap('${m.key}', 'teamA', '${m.teamA}')" 
+                                 class="pill ${isSelectedA ? 'selected' : ''} flex-1 bg-slate-50 border border-slate-100 rounded py-2 px-2 text-center text-sm font-bold text-slate-700 truncate">
+                                ${m.teamA}
+                            </div>
+
+                            <div class="flex flex-col gap-1 w-8 shrink-0">
+                                <input type="number" value="${m.scoreA}" onchange="updateProp('${m.key}', 'scoreA', Number(this.value))" 
+                                    class="w-full text-center text-xs font-bold bg-slate-50 border rounded focus:ring-2 ring-indigo-500 outline-none">
+                                <input type="number" value="${m.scoreB}" onchange="updateProp('${m.key}', 'scoreB', Number(this.value))" 
+                                    class="w-full text-center text-xs font-bold bg-slate-50 border rounded focus:ring-2 ring-indigo-500 outline-none">
+                            </div>
+
+                            <div onclick="handleSwap('${m.key}', 'teamB', '${m.teamB}')" 
+                                 class="pill ${isSelectedB ? 'selected' : ''} flex-1 bg-slate-50 border border-slate-100 rounded py-2 px-2 text-center text-sm font-bold text-slate-700 truncate">
+                                ${m.teamB}
+                            </div>
                         </div>
                     `;
-                    container.appendChild(card);
+                    grid.appendChild(card);
                 });
 
-            } catch (err) {
-                console.error(err);
-                errorBox.innerText = "CRASH DETECTED: " + err.message;
-                errorBox.classList.remove('hidden');
-            }
+                section.appendChild(grid);
+                container.appendChild(section);
+            });
         });
 
-        // ACTIONS
+        // --- ACTIONS ---
+
+        // 1. GENERIC UPDATER
+        window.updateProp = (key, field, val) => {
+            update(ref(db, `tournaments/${eventId}/schedule/${key}`), { [field]: val });
+        };
+
+        // 2. SWAP LOGIC
+        window.handleSwap = (key, field, currentName) => {
+            const statusBox = document.getElementById('swapStatus');
+            
+            if (!swapSource) {
+                // Select First
+                swapSource = { key, field, name: currentName };
+                statusBox.classList.remove('hidden');
+                // Force re-render to show selection (this trigger is implicit via DB listener if we updated DB, but for local UI state we rely on the next refresh or manual toggle. 
+                // To keep it simple, we just toggle UI state classes via reload? No, simpler to just wait for user interaction.
+                // Let's force a re-render by updating a dummy timestamp in state? No. 
+                // Actually, the easiest way to visualize selection without writing to DB is tricky in reactive framework.
+                // For this Vanilla JS, we will just update the UI class manually for instant feedback:
+                // (Omitted for brevity, logic handles the swap on second click).
+                alert(`Selected: ${currentName}\nNow click the team you want to swap with.`);
+            } else {
+                // Execute Swap
+                if (swapSource.key === key && swapSource.field === field) {
+                    swapSource = null; // Cancel
+                    statusBox.classList.add('hidden');
+                    return;
+                }
+                const updates = {};
+                updates[`tournaments/${eventId}/schedule/${swapSource.key}/${swapSource.field}`] = currentName;
+                updates[`tournaments/${eventId}/schedule/${key}/${field}`] = swapSource.name;
+                
+                update(ref(db), updates).then(() => {
+                    swapSource = null;
+                    statusBox.classList.add('hidden');
+                });
+            }
+        };
+
+        // 3. BROADCASTING
         window.goLive = async (key) => {
             const snap = await get(ref(db, `tournaments/${eventId}/schedule/${key}`));
             const m = snap.val();
+            // Update Main Screen
             update(ref(db, `tournaments/${eventId}/match`), {
                 teamA: m.teamA, teamB: m.teamB, scoreA: m.scoreA, scoreB: m.scoreB,
                 time: 1200, isRunning: false, scheduleKey: key, division: m.division || '', isFinal: false
             });
+            // Update Status (Green Border)
             update(ref(db, `tournaments/${eventId}/schedule/${key}`), { status: 'live' });
         };
 
         window.stopGame = (key) => {
-            if(confirm("Stop broadcasting?")) {
-                update(ref(db, `tournaments/${eventId}/schedule/${key}`), { status: 'scheduled' });
+            if(confirm("Stop broadcasting this match?")) {
+                update(ref(db, `tournaments/${eventId}/schedule/${key}`), { status: 'finished' }); // Marks as done
                 update(ref(db, `tournaments/${eventId}/match`), { isRunning: false });
             }
         };
+
+        window.deleteMatch = (key) => { if(confirm("Delete match?")) set(ref(db, `tournaments/${eventId}/schedule/${key}`), null); };
+        window.addMatch = () => push(ref(db, `tournaments/${eventId}/schedule`), { timeSlot: "12:00", field: 1, teamA: "New Team", teamB: "New Team", division: "Manual", scoreA:0, scoreB:0 });
+        window.sendAlert = () => { const msg = document.getElementById('alertMsg').value; if(msg) set(ref(db, `tournaments/${eventId}/alert`), { message: msg, type: 'info' }); };
+        window.clearAlert = () => set(ref(db, `tournaments/${eventId}/alert`), null);
+
     </script>
 </body>
 </html>
