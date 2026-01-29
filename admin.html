@@ -12,8 +12,6 @@
         .option-card { transition: all 0.2s; border: 2px solid transparent; }
         .option-card:hover { transform: translateY(-2px); shadow: lg; }
         .option-card.recommended { border-color: #22c55e; background-color: #f0fdf4; }
-        .option-card.warning { border-color: #f59e0b; background-color: #fffbeb; opacity: 0.9; }
-        .option-card.impossible { border-color: #ef4444; background-color: #fef2f2; opacity: 0.6; filter: grayscale(1); pointer-events: none; }
     </style>
 </head>
 <body class="bg-slate-50 min-h-screen p-6 font-sans text-slate-800">
@@ -49,7 +47,7 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4 mb-8">
+                <div class="grid grid-cols-2 gap-4 mb-4">
                     <div>
                         <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Game Length (Mins)</label>
                         <input type="number" id="gameDur" value="30" class="w-full p-3 border rounded font-bold">
@@ -116,28 +114,24 @@
             const divCount = parseInt(document.getElementById('divCount').value);
             const pitches = parseInt(document.getElementById('pitchCount').value);
             const slotDur = parseInt(document.getElementById('gameDur').value) + parseInt(document.getElementById('breakDur').value);
-            
-            // Assume even split for estimation
             const teamsPerDiv = Math.ceil(teamTotal / divCount);
             
             const grid = document.getElementById('optionsGrid');
             grid.innerHTML = '';
 
-            // CALC 1: BLOCKED
             const matchesPerDiv = (teamsPerDiv * (teamsPerDiv - 1)) / 2;
             const blockTime = Math.ceil(matchesPerDiv / pitches) * slotDur;
             
             addOptionCard({
                 title: "Blocked Schedule",
                 icon: "🧱",
-                desc: `Finish Division 1 completely before starting Division 2.`,
-                detail: `Good if U15s arrive AM and U18s arrive PM.`,
+                desc: `Finish Division 1 before starting Division 2.`,
+                detail: `Good for separate arrival times.`,
                 mins: blockTime * divCount,
                 type: 'block',
                 param: divCount
             });
 
-            // CALC 2: WEAVED (Recommended for Work/Rest)
             if(divCount >= 2) {
                 addOptionCard({
                     title: "Weaved / Interleaved",
@@ -148,19 +142,6 @@
                     type: 'weave',
                     param: divCount,
                     recommended: true
-                });
-            }
-
-            // CALC 3: GROUPS
-            if(teamsPerDiv > 5) {
-                addOptionCard({
-                    title: "Pools + Finals",
-                    icon: "🏆",
-                    desc: `Split each division into 2 pools.`,
-                    detail: `Faster completion. Includes Semis/Finals.`,
-                    mins: (blockTime * divCount) * 0.7,
-                    type: 'pools',
-                    param: divCount
                 });
             }
 
@@ -197,30 +178,54 @@
             for(let i=1; i<=param; i++) {
                 container.innerHTML += `
                     <div class="bg-slate-50 p-3 rounded border">
-                        <input type="text" id="divName${i}" placeholder="Division ${i} Name (e.g. U${12+(i*3)})" class="w-full mb-2 p-2 text-sm border rounded font-bold">
-                        <textarea id="divTeams${i}" placeholder="Paste Teams for Division ${i}" class="w-full p-2 text-sm border rounded h-20"></textarea>
+                        <div class="flex justify-between mb-1">
+                            <input type="text" id="divName${i}" value="${i===1?'U15':(i===2?'U18':`Div ${i}`)}" class="bg-transparent font-bold text-sm">
+                            <span id="count${i}" class="text-[10px] text-slate-400 font-bold uppercase">0 Teams</span>
+                        </div>
+                        <textarea id="divTeams${i}" oninput="updateCount(${i})" placeholder="Paste Teams Here" class="w-full p-2 text-sm border rounded h-24 font-mono"></textarea>
                     </div>
                 `;
             }
             changeStep(3);
         };
 
+        // --- HELPER TO COUNT TEAMS LIVE ---
+        window.updateCount = (i) => {
+            const raw = document.getElementById(`divTeams${i}`).value;
+            // Clean split: remove quotes, newlines, commas
+            const teams = raw.replace(/"/g, '').split(/[\n,]+/).map(t=>t.trim()).filter(t=>t.length > 1);
+            const badge = document.getElementById(`count${i}`);
+            badge.innerText = `${teams.length} Teams`;
+            
+            if(teams.length < 2) { badge.classList.add('text-red-500'); badge.classList.remove('text-green-500'); }
+            else { badge.classList.remove('text-red-500'); badge.classList.add('text-green-500'); }
+        };
+
         // --- GENERATOR ---
         window.generateFinal = async () => {
             const btn = document.getElementById('genBtn');
-            btn.innerText = "Generating..."; btn.disabled = true;
-
             const slotDur = parseInt(document.getElementById('gameDur').value) + parseInt(document.getElementById('breakDur').value);
             const pitchCount = parseInt(document.getElementById('pitchCount').value);
             
             // 1. GATHER TEAMS
             let divisions = [];
+            let totalTeams = 0;
+            
             for(let i=1; i<=config.param; i++) {
-                const name = document.getElementById(`divName${i}`).value || `Div ${i}`;
+                const name = document.getElementById(`divName${i}`).value;
                 const raw = document.getElementById(`divTeams${i}`).value;
-                const teams = raw.split(/[\n,]+/).map(t=>t.trim()).filter(t=>t);
-                if(teams.length > 0) divisions.push({ name, teams });
+                // CLEAN INPUT: Remove quotes, extra spaces
+                const teams = raw.replace(/"/g, '').split(/[\n,]+/).map(t=>t.trim()).filter(t=>t.length > 1);
+                
+                if(teams.length < 2) return alert(`Division "${name}" has less than 2 teams. Please check your list.`);
+                
+                divisions.push({ name, teams });
+                totalTeams += teams.length;
             }
+
+            if(!confirm(`Ready to generate schedule for ${totalTeams} teams across ${divisions.length} divisions?`)) return;
+
+            btn.innerText = "Generating..."; btn.disabled = true;
 
             // 2. BUILD MATCHES
             let allMatches = [];
@@ -235,34 +240,32 @@
                 }
             });
 
-            // 3. SORTING ALGORITHM (THE WEAVER)
+            // 3. WEAVE LOGIC
             if(config.type === 'weave') {
                 const matchesByDiv = {};
                 divisions.forEach(d => matchesByDiv[d.name] = allMatches.filter(m => m.division === d.name));
                 
                 let weaved = [];
+                // Calculate max matches in any single division
                 const maxLen = Math.max(...Object.values(matchesByDiv).map(arr => arr.length));
                 
                 for(let i=0; i<maxLen; i++) {
-                    // Try to zip 1 match from A, 1 from B, etc.
                     divisions.forEach(d => {
                         const m = matchesByDiv[d.name][i];
                         if(m) weaved.push(m);
                     });
                 }
-                if(weaved.length > 0) allMatches = weaved;
+                allMatches = weaved;
             }
 
             // 4. ASSIGN PITCHES
             const scheduleRef = ref(db, `tournaments/${eventId}/schedule`);
             await set(scheduleRef, null);
 
-            // Start at 09:40 to match your PDF example
-            let pitchTimes = Array(pitchCount).fill(9 * 60 + 40); 
+            let pitchTimes = Array(pitchCount).fill(9 * 60 + 40); // 09:40 Start
             const toTime = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
             
             const promises = allMatches.map(m => {
-                // Find earliest pitch
                 let pIdx = 0;
                 for(let p=1; p<pitchCount; p++) if(pitchTimes[p] < pitchTimes[pIdx]) pIdx = p;
                 
