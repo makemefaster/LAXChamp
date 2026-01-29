@@ -74,8 +74,8 @@
             status.className = "text-xs font-mono bg-green-900 text-green-200 px-2 py-1 rounded";
             countDisplay.innerText = `Showing ${matches.length} Matches`;
 
-            // Sort by Time
-            matches.sort((a,b) => (a.timeSlot + a.field).localeCompare(b.timeSlot + b.field));
+            // Sort by Time (FIXED: Added fallback strings to prevent crash on missing data)
+            matches.sort((a,b) => ((a.timeSlot||'') + a.field).localeCompare((b.timeSlot||'') + b.field));
 
             matches.forEach(m => {
                 const card = document.createElement('div');
@@ -84,6 +84,7 @@
                 // Division Badge Color
                 const divColor = m.division?.includes('1') ? 'text-indigo-500' : 'text-orange-500';
 
+                // FIXED: Added "|| '(Empty)'" to display a placeholder if team name is missing
                 card.innerHTML = `
                     <div class="flex justify-between items-center mb-2 pb-2 border-b border-slate-50">
                         <div class="flex items-center gap-2">
@@ -94,9 +95,9 @@
                         <button onclick="goLive('${m.key}')" class="text-[10px] font-bold bg-green-50 text-green-600 px-2 py-1 rounded border border-green-200">LIVE</button>
                     </div>
                     <div class="flex items-center gap-2">
-                        <div onclick="swap('${m.key}','teamA','${m.teamA}')" class="pill flex-1 bg-slate-50 border p-2 text-center text-sm font-bold truncate rounded">${m.teamA}</div>
+                        <div onclick="swap('${m.key}','teamA','${m.teamA}')" class="pill flex-1 bg-slate-50 border p-2 text-center text-sm font-bold truncate rounded">${m.teamA || '(Empty)'}</div>
                         <div class="text-xs text-slate-300">vs</div>
-                        <div onclick="swap('${m.key}','teamB','${m.teamB}')" class="pill flex-1 bg-slate-50 border p-2 text-center text-sm font-bold truncate rounded">${m.teamB}</div>
+                        <div onclick="swap('${m.key}','teamB','${m.teamB}')" class="pill flex-1 bg-slate-50 border p-2 text-center text-sm font-bold truncate rounded">${m.teamB || '(Empty)'}</div>
                     </div>
                 `;
                 container.appendChild(card);
@@ -116,9 +117,12 @@
 
         // --- SWAP LOGIC ---
         window.swap = (key, field, name) => {
+            // Treat "undefined" or "null" name as empty string for clarity in alerts
+            const displayName = name || "(Empty Slot)";
+            
             if(!swapSource) {
                 swapSource = { key, field, name };
-                alert(`Selected ${name}. Tap another team to swap.`);
+                alert(`Selected ${displayName}. Tap another team to swap.`);
             } else {
                 const updates = {};
                 updates[`tournaments/${eventId}/schedule/${swapSource.key}/${swapSource.field}`] = name;
@@ -132,7 +136,7 @@
             get(ref(db, `tournaments/${eventId}/schedule/${key}`)).then(s => {
                 const m = s.val();
                 update(ref(db, `tournaments/${eventId}/match`), { 
-                    teamA: m.teamA, teamB: m.teamB, scoreA: m.scoreA, scoreB: m.scoreB, 
+                    teamA: m.teamA || 'Home', teamB: m.teamB || 'Away', scoreA: m.scoreA, scoreB: m.scoreB, 
                     isRunning: false, scheduleKey: key 
                 });
                 update(ref(db, `tournaments/${eventId}/schedule/${key}`), { status: 'live' });
