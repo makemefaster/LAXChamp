@@ -1,15 +1,15 @@
-const CACHE_NAME = "laxchamp-v8"; // Version Bumped
+const CACHE_NAME = "laxchamp-v10-multi";
 const ASSETS = [
     "./", 
     "./index.html", 
+    "./director.html", 
     "./admin.html", 
     "./umpire.html", 
+    "./umpire-login.html",
     "./live.html", 
-    "./schedule.html", // NEW
-    "./map.html",      // NEW
+    "./schedule.html",
     "./firebase-config.js",
-    "https://cdn.tailwindcss.com",
-    "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap"
+    "https://cdn.tailwindcss.com"
 ];
 
 self.addEventListener("install", e => {
