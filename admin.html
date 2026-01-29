@@ -221,7 +221,7 @@
             changeStep(3);
         };
 
-        // --- 3. GENERATE PREVIEW (With Physics Engine) ---
+        // --- 3. THE "TETRIS" SCHEDULER (Fill Gaps) ---
         window.generatePreview = () => {
             pendingMatches = [];
             const slotDur = parseInt(document.getElementById('gameDur').value) + parseInt(document.getElementById('breakDur').value);
@@ -235,7 +235,6 @@
             for(let i=0; i<divCount; i++) {
                 const divName = document.getElementById(`divName_${i}`).value;
                 const rawTeams = document.getElementById(`divTeams_${i}`).value.split(/[\r\n,]+/).map(t=>t.trim()).filter(t=>t);
-                
                 if(rawTeams.length > 1) {
                     rawTeams.forEach(t => allTeamNames.add(t));
                     let pool = [];
@@ -247,62 +246,87 @@
                     matchPools.push(pool);
                 }
             }
-
             if(matchPools.length === 0) return alert("Please enter at least 2 teams.");
 
-            // B. Merge (Zipper or Block)
-            let finalMatches = [];
-            if(flow === 'block') matchPools.forEach(p => finalMatches.push(...p));
+            // B. Queue Up Matches
+            let matchQueue = [];
+            if(flow === 'block') matchPools.forEach(p => matchQueue.push(...p));
             else {
                 let max = Math.max(...matchPools.map(p => p.length));
-                for(let i=0; i<max; i++) matchPools.forEach(p => { if(p[i]) finalMatches.push(p[i]); });
+                for(let i=0; i<max; i++) matchPools.forEach(p => { if(p[i]) matchQueue.push(p[i]); });
             }
-            if(config.type === 'groups_final') finalMatches.push({teamA:"Winner A", teamB:"Winner B", division:"Final", type:'final'});
+            if(config.type === 'groups_final') matchQueue.push({teamA:"Winner A", teamB:"Winner B", division:"Final", type:'final'});
 
-            // C. PHYSICS ENGINE (Conflict Solver)
+            // C. TETRIS LOGIC (Fill Gaps)
             let pitchAvail = Array(pitchCount).fill(0); // Mins from start
             let teamAvail = {};
             allTeamNames.forEach(t => teamAvail[t] = 0);
-            // Add placeholders to availability map
             ["Winner A", "Winner B", "Winner Div 1", "Winner Div 2", "BYE"].forEach(t => teamAvail[t] = 0);
 
             const START = 9 * 60; 
             const toTime = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
 
-            finalMatches.forEach(m => {
-                // Earliest teams are ready
-                const tA = teamAvail[m.teamA] || 0;
-                const tB = teamAvail[m.teamB] || 0;
-                const teamsReady = Math.max(tA, tB);
+            // Process queue until empty
+            while(matchQueue.length > 0) {
+                
+                // 1. Find the Pitch with the earliest open slot (The "Hole")
+                let bestPitch = 0;
+                for(let p=1; p<pitchCount; p++) {
+                    if(pitchAvail[p] < pitchAvail[bestPitch]) bestPitch = p;
+                }
+                let slotTime = pitchAvail[bestPitch];
 
-                // Find best pitch (Earliest valid slot)
-                let bestPitch = -1;
-                let bestStart = Infinity;
-
-                for(let p=0; p<pitchCount; p++) {
-                    // Match starts when Pitch is free AND Teams are ready
-                    const possibleStart = Math.max(pitchAvail[p], teamsReady);
+                // 2. Scan queue for the FIRST match that can fit in this hole
+                let bestMatchIdx = -1;
+                
+                for(let i=0; i<matchQueue.length; i++) {
+                    const m = matchQueue[i];
+                    const tA = teamAvail[m.teamA] || 0;
+                    const tB = teamAvail[m.teamB] || 0;
                     
-                    if (possibleStart < bestStart) {
-                        bestStart = possibleStart;
-                        bestPitch = p;
+                    // If both teams are free by the time this pitch is free
+                    if (tA <= slotTime && tB <= slotTime) {
+                        bestMatchIdx = i;
+                        break; // Found the perfect piece!
                     }
                 }
 
-                m.field = bestPitch + 1;
-                m.timeSlot = toTime(START + bestStart);
-                m.scoreA = 0; m.scoreB = 0; m.status = 'scheduled';
+                // 3. If no match fits perfectly right now (everyone busy)
+                if (bestMatchIdx === -1) {
+                    // We need to advance the time of this pitch to when SOMEONE is free
+                    // Find the absolute earliest any match in the queue *could* be ready
+                    let earliestPossible = Infinity;
+                    for(let i=0; i<matchQueue.length; i++) {
+                        const m = matchQueue[i];
+                        const ready = Math.max(teamAvail[m.teamA]||0, teamAvail[m.teamB]||0);
+                        if(ready < earliestPossible) {
+                            earliestPossible = ready;
+                            bestMatchIdx = i;
+                        }
+                    }
+                    // Jump pitch time to that moment
+                    slotTime = earliestPossible;
+                }
 
-                // Update Locks
-                const finish = bestStart + slotDur;
+                // 4. Schedule It
+                const m = matchQueue.splice(bestMatchIdx, 1)[0];
+                m.field = bestPitch + 1;
+                m.timeSlot = toTime(START + slotTime);
+                m.scoreA = 0; m.scoreB = 0; m.status = 'scheduled';
+                
+                // Locks
+                const finish = slotTime + slotDur;
                 pitchAvail[bestPitch] = finish;
                 teamAvail[m.teamA] = finish;
                 teamAvail[m.teamB] = finish;
                 
                 pendingMatches.push(m);
-            });
+            }
 
-            // D. Render Preview
+            // D. Sort by Time for Preview (Optional, makes table readable)
+            pendingMatches.sort((a,b) => (a.timeSlot+a.field).localeCompare(b.timeSlot+b.field));
+
+            // E. Render Preview
             const tbody = document.getElementById('previewBody');
             tbody.innerHTML = '';
             pendingMatches.forEach(m => {
@@ -313,7 +337,6 @@
                         <td class="p-2 border-b text-xs">${m.teamA} vs ${m.teamB} <span class="text-slate-400">(${m.division})</span></td>
                     </tr>`;
             });
-
             document.getElementById('previewCount').innerText = `${pendingMatches.length} Matches`;
             document.getElementById('previewContainer').classList.remove('hidden');
             document.getElementById('previewBtn').classList.add('hidden');
@@ -325,11 +348,9 @@
             btn.innerText = "Uploading to Database..."; btn.disabled = true;
 
             const scheduleRef = ref(db, `tournaments/${eventId}/schedule`);
-            await set(scheduleRef, null); // Wipe old
-
+            await set(scheduleRef, null); 
             const promises = pendingMatches.map(m => push(scheduleRef, m));
             await set(ref(db, `tournaments/${eventId}/match`), { teamA:"--", teamB:"--", scoreA:0, scoreB:0, isRunning:false });
-            
             await Promise.all(promises);
             window.location.href = `manage.html?event=${eventId}`;
         };
