@@ -49,22 +49,15 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4 mb-4">
+                <div class="grid grid-cols-2 gap-4 mb-8">
                     <div>
                         <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Game Length (Mins)</label>
-                        <input type="number" id="gameDur" value="15" class="w-full p-3 border rounded font-bold">
+                        <input type="number" id="gameDur" value="30" class="w-full p-3 border rounded font-bold">
                     </div>
                     <div>
                         <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Changeover (Mins)</label>
-                        <input type="number" id="breakDur" value="5" class="w-full p-3 border rounded font-bold">
+                        <input type="number" id="breakDur" value="7" class="w-full p-3 border rounded font-bold">
                     </div>
-                </div>
-
-                <div class="mb-8">
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" id="useSurface" class="w-5 h-5 rounded text-indigo-600">
-                        <span class="text-sm font-bold text-slate-600">Enable Surface Constraints (Grass vs Astro)</span>
-                    </label>
                 </div>
 
                 <button onclick="calculateOptions()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl text-lg shadow-lg transition transform active:scale-95">Analyze & Suggest Formats ✨</button>
@@ -130,45 +123,42 @@
             const grid = document.getElementById('optionsGrid');
             grid.innerHTML = '';
 
-            // CALC 1: BLOCKED (Morning/Afternoon)
-            // Div A plays all games, then Div B plays.
+            // CALC 1: BLOCKED
             const matchesPerDiv = (teamsPerDiv * (teamsPerDiv - 1)) / 2;
             const blockTime = Math.ceil(matchesPerDiv / pitches) * slotDur;
             
             addOptionCard({
                 title: "Blocked Schedule",
                 icon: "🧱",
-                desc: `Finish ${divCount > 1 ? 'Division 1' : 'games'} completely before starting the next.`,
-                detail: `Good for separate arrival times (e.g. U15 AM, U18 PM).`,
+                desc: `Finish Division 1 completely before starting Division 2.`,
+                detail: `Good if U15s arrive AM and U18s arrive PM.`,
                 mins: blockTime * divCount,
                 type: 'block',
                 param: divCount
             });
 
-            // CALC 2: WEAVED (Interleaved)
-            // Div A Slot 1, Div B Slot 1, Div A Slot 2...
-            // Ideal for rest periods (Supercounties Style)
+            // CALC 2: WEAVED (Recommended for Work/Rest)
             if(divCount >= 2) {
                 addOptionCard({
                     title: "Weaved / Interleaved",
                     icon: "🧶",
-                    desc: `Alternate between divisions (A then B then A).`,
+                    desc: `Alternate divisions (A-B-A-B).`,
                     detail: `Built-in rest periods. Keeps pitches full.`,
-                    mins: blockTime * divCount, // Same total time, different flow
+                    mins: blockTime * divCount,
                     type: 'weave',
                     param: divCount,
                     recommended: true
                 });
             }
 
-            // CALC 3: GROUPS (If > 6 teams per div)
+            // CALC 3: GROUPS
             if(teamsPerDiv > 5) {
                 addOptionCard({
                     title: "Pools + Finals",
                     icon: "🏆",
                     desc: `Split each division into 2 pools.`,
                     detail: `Faster completion. Includes Semis/Finals.`,
-                    mins: (blockTime * divCount) * 0.7, // Approx 30% faster
+                    mins: (blockTime * divCount) * 0.7,
                     type: 'pools',
                     param: divCount
                 });
@@ -202,7 +192,6 @@
             document.getElementById('chosenFormatDisplay').innerText = title;
             document.getElementById('chosenDetailsDisplay').innerText = `Setup for ${param} Divisions`;
 
-            // Generate Inputs for each Division
             const container = document.getElementById('divisionInputs');
             container.innerHTML = '';
             for(let i=1; i<=param; i++) {
@@ -236,7 +225,6 @@
             // 2. BUILD MATCHES
             let allMatches = [];
             divisions.forEach(div => {
-                // Simple Round Robin for now
                 for(let i=0; i<div.teams.length; i++) {
                     for(let j=i+1; j<div.teams.length; j++) {
                         allMatches.push({ 
@@ -249,8 +237,6 @@
 
             // 3. SORTING ALGORITHM (THE WEAVER)
             if(config.type === 'weave') {
-                // Sort matches so we alternate divisions: [DivA_Game1, DivB_Game1, DivA_Game2...]
-                // Group matches by Division first
                 const matchesByDiv = {};
                 divisions.forEach(d => matchesByDiv[d.name] = allMatches.filter(m => m.division === d.name));
                 
@@ -258,58 +244,38 @@
                 const maxLen = Math.max(...Object.values(matchesByDiv).map(arr => arr.length));
                 
                 for(let i=0; i<maxLen; i++) {
-                    // Take `pitchCount` games from Div A, then `pitchCount` from Div B
-                    // This creates "Waves" of games
+                    // Try to zip 1 match from A, 1 from B, etc.
                     divisions.forEach(d => {
-                        const batch = matchesByDiv[d.name].slice(i * pitchCount, (i+1) * pitchCount);
-                        weaved.push(...batch);
+                        const m = matchesByDiv[d.name][i];
+                        if(m) weaved.push(m);
                     });
-                    // Note: This logic assumes we burn through games in chunks of 'pitchCount'
-                    // To do it perfectly, we might need to adjust the slice index, but this is a solid v1.
                 }
-                // Overwrite allMatches with the re-ordered list
-                // If the weave missed any (due to uneven lengths), append remainder? 
-                // A safer simple weave: just zip them 1 by 1.
-                // Let's stick to simple zip for robustness:
-                weaved = [];
-                for(let i=0; i<allMatches.length; i++) {
-                     divisions.forEach(d => {
-                         const m = matchesByDiv[d.name][i];
-                         if(m) weaved.push(m);
-                     });
-                }
-                allMatches = weaved;
+                if(weaved.length > 0) allMatches = weaved;
             }
 
-           // 4. ASSIGN PITCHES (SMART SURFACE LOGIC)
+            // 4. ASSIGN PITCHES
             const scheduleRef = ref(db, `tournaments/${eventId}/schedule`);
             await set(scheduleRef, null);
 
-            // Define Pitches (1=Astro, 2+3=Grass based on your map)
-            // We track the time for each pitch independently
-            let pitchTimes = Array(pitchCount).fill(9 * 60 + 40); // Start 09:40 (matches PDF)
+            // Start at 09:40 to match your PDF example
+            let pitchTimes = Array(pitchCount).fill(9 * 60 + 40); 
             const toTime = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
             
             const promises = allMatches.map(m => {
-                // Find pitch with earliest available time
+                // Find earliest pitch
                 let pIdx = 0;
-                for(let p=1; p<pitchCount; p++) {
-                    if(pitchTimes[p] < pitchTimes[pIdx]) pIdx = p;
-                }
+                for(let p=1; p<pitchCount; p++) if(pitchTimes[p] < pitchTimes[pIdx]) pIdx = p;
                 
-                // OPTIONAL: If Surface Constraint is ON, we could try to keep 
-                // this team on the same pitch as their previous game.
-                // For now, we prioritize TIME (filling the schedule efficiently).
-                
-                m.field = pIdx + 1; // Pitch 1, 2, 3
+                m.field = pIdx + 1;
                 m.timeSlot = toTime(pitchTimes[pIdx]);
-                
-                // Add tag for the UI
-                m.surface = (m.field === 1) ? 'Astro' : 'Grass'; 
                 
                 pitchTimes[pIdx] += slotDur;
                 return push(scheduleRef, m);
             });
+
+            await set(ref(db, `tournaments/${eventId}/match`), { teamA:"TBD", teamB:"TBD", scoreA:0, scoreB:0, isRunning:false });
+            Promise.all(promises).then(() => window.location.href = `manage.html?event=${eventId}`);
+        };
     </script>
 </body>
 </html>
