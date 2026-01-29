@@ -3,117 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Setup</title>
+    <title>Tournament Setup</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        .step { display: none; }
-        .step.active { display: block; animation: fadein 0.3s; }
-        @keyframes fadein { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
-        .format-card { border: 2px solid #e2e8f0; cursor: pointer; transition: all 0.2s; }
-        .format-card:hover { border-color: #6366f1; background-color: #eef2ff; }
-        .format-card.selected { border-color: #4f46e5; background-color: #e0e7ff; ring: 2px solid #4f46e5; }
-    </style>
+    <style>.step { display: none; } .step.active { display: block; }</style>
 </head>
 <body class="bg-slate-50 min-h-screen p-6 font-sans text-slate-800">
 
-    <div class="max-w-3xl mx-auto bg-white shadow-xl rounded-2xl p-8 border border-slate-100">
-        
-        <div class="mb-6 border-b pb-4 flex justify-between items-center">
-            <div>
-                <h1 class="text-2xl font-black text-slate-800">Event Configuration</h1>
-                <p class="text-slate-500 text-sm">Logistics & Scheduling Engine</p>
-            </div>
-            <div class="text-right">
-                <div class="text-[10px] font-bold uppercase text-slate-400">Step</div>
-                <div class="font-bold text-xl text-indigo-600"><span id="stepNum">1</span>/4</div>
-            </div>
+    <div class="max-w-2xl mx-auto bg-white shadow-xl rounded-2xl p-8 border border-slate-100">
+        <h1 class="text-2xl font-black text-slate-800 mb-2">Event Setup</h1>
+        <div class="flex justify-between items-center mb-6">
+             <p class="text-slate-500 text-sm">Logistics & Scheduling</p>
+             <span class="bg-indigo-100 text-indigo-700 px-2 py-1 rounded text-xs font-bold">Step <span id="stepNum">1</span>/3</span>
         </div>
 
         <div id="step1" class="step active">
-            <h2 class="font-bold text-lg mb-4 text-indigo-600">1. Tournament Format</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div class="format-card p-6 rounded-xl relative" onclick="selectFormat('league', this)">
-                    <div class="text-3xl mb-2">📊</div>
-                    <h3 class="font-bold text-lg">League / Round Robin</h3>
-                    <p class="text-xs text-slate-500 mt-2">All play all. Best for group stages.</p>
+            <h2 class="font-bold text-lg mb-4 text-indigo-600">1. Logistics</h2>
+            
+            <div class="mb-4">
+                <label class="block text-xs font-bold uppercase text-slate-400">Total Slot Duration (Mins)</label>
+                <input type="number" id="slotDur" value="30" class="w-full p-3 border rounded font-bold text-lg">
+                <p class="text-[10px] text-slate-400">Includes Game + Half Time + Changeover</p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400">Pitch Count</label>
+                    <input type="number" id="pitchCount" value="3" class="w-full p-3 border rounded font-bold">
                 </div>
-                <div class="format-card p-6 rounded-xl relative" onclick="selectFormat('knockout', this)">
-                    <div class="text-3xl mb-2">🥊</div>
-                    <h3 class="font-bold text-lg">Single Elimination</h3>
-                    <p class="text-xs text-slate-500 mt-2">Lose and go home.</p>
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400">First Game</label>
+                    <input type="time" id="startTime" value="09:00" class="w-full p-3 border rounded font-bold">
                 </div>
             </div>
-            <input type="hidden" id="selectedFormat">
-            <button onclick="changeStep(2)" class="w-full bg-slate-800 text-white font-bold py-3 rounded-xl disabled:opacity-50" id="btnStep1" disabled>Next: Logistics</button>
+
+            <button onclick="changeStep(2)" class="w-full bg-slate-800 text-white font-bold py-3 rounded-xl">Next: Teams</button>
         </div>
 
         <div id="step2" class="step">
-            <h2 class="font-bold text-lg mb-4 text-indigo-600">2. Match Timings</h2>
+            <h2 class="font-bold text-lg mb-4 text-indigo-600">2. Teams</h2>
             
-            <div class="grid grid-cols-2 gap-4 mb-4 bg-slate-50 p-4 rounded-xl border">
-                <div>
-                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Game Time (Mins)</label>
-                    <input type="number" id="gameTime" value="20" class="w-full p-2 border rounded text-sm" onchange="calcSlot()">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Break/Changeover</label>
-                    <input type="number" id="breakTime" value="5" class="w-full p-2 border rounded text-sm" onchange="calcSlot()">
-                </div>
+            <div class="bg-slate-50 p-4 rounded-xl border mb-4">
+                <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Division Name</label>
+                <input type="text" id="divName" placeholder="e.g. U15" class="w-full mb-2 p-2 border rounded">
+                
+                <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Team List</label>
+                <textarea id="teamList" placeholder="Paste teams here..." class="w-full p-2 border rounded h-24"></textarea>
+                
+                <button onclick="addDivision()" class="mt-2 w-full bg-indigo-100 text-indigo-700 font-bold py-2 rounded text-xs">Add Division</button>
             </div>
 
-            <div class="mb-6">
-                <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Total Schedule Slot (Mins)</label>
-                <div class="flex items-center gap-2">
-                    <input type="number" id="slotDur" value="25" class="w-full p-3 bg-indigo-50 border border-indigo-200 rounded font-bold text-lg text-indigo-700">
-                    <button onclick="calcSlot()" class="bg-indigo-100 text-indigo-600 p-3 rounded font-bold text-xs hover:bg-indigo-200">↺ Recalc</button>
-                </div>
-                <p class="text-[10px] text-slate-400 mt-1">This is the interval used for the schedule (e.g. 09:00, 09:25, 09:50).</p>
-            </div>
+            <div id="divisionDisplay" class="space-y-2 mb-6"></div>
 
             <div class="flex gap-2">
                 <button onclick="changeStep(1)" class="w-1/3 bg-slate-200 font-bold py-3 rounded-xl">Back</button>
-                <button onclick="changeStep(3)" class="w-2/3 bg-slate-800 text-white font-bold py-3 rounded-xl">Next: Pitches</button>
+                <button onclick="changeStep(3)" class="w-2/3 bg-slate-800 text-white font-bold py-3 rounded-xl">Next: Generate</button>
             </div>
         </div>
 
         <div id="step3" class="step">
-            <h2 class="font-bold text-lg mb-2 text-indigo-600">3. Pitch Setup</h2>
-            
-            <div class="flex items-end gap-2 mb-4 bg-slate-50 p-3 rounded-xl border">
-                <div class="flex-1">
-                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1">How many pitches?</label>
-                    <input type="number" id="bulkCount" value="3" class="w-full p-2 border rounded font-bold">
-                </div>
-                <div class="flex-1">
-                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Start Time</label>
-                    <input type="time" id="bulkStart" value="09:00" class="w-full p-2 border rounded">
-                </div>
-                <button onclick="bulkSetPitches()" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded hover:bg-indigo-500 mb-[1px]">Set Pitches</button>
+            <h2 class="font-bold text-lg mb-4 text-indigo-600">3. Confirmation</h2>
+            <div class="bg-yellow-50 border border-yellow-200 p-4 rounded-xl text-sm text-yellow-800 mb-6">
+                Please confirm:
+                <ul class="list-disc pl-5 mt-2 space-y-1">
+                    <li>Pitch 1, 2, 3 will be used evenly.</li>
+                    <li>Matches follow "Round Robin" (Everyone plays everyone).</li>
+                    <li>6 Teams = 15 Matches.</li>
+                </ul>
             </div>
-
-            <div id="pitchList" class="space-y-2 mb-6 max-h-60 overflow-y-auto pr-2"></div>
-
-            <div class="flex gap-2">
-                <button onclick="changeStep(2)" class="w-1/3 bg-slate-200 font-bold py-3 rounded-xl">Back</button>
-                <button onclick="changeStep(4)" class="w-2/3 bg-slate-800 text-white font-bold py-3 rounded-xl">Next: Teams</button>
-            </div>
-        </div>
-
-        <div id="step4" class="step">
-            <h2 class="font-bold text-lg mb-4 text-indigo-600">4. Divisions & Teams</h2>
-            
-            <div class="bg-slate-50 p-4 rounded-xl border mb-4">
-                <input type="text" id="divName" placeholder="Division Name (e.g. U15 Boys)" class="w-full mb-2 p-2 border rounded text-sm">
-                <textarea id="teamList" placeholder="Paste Teams (one per line)" class="w-full p-2 border rounded text-sm h-24"></textarea>
-                <button onclick="addDivision()" class="mt-2 w-full bg-indigo-100 text-indigo-700 text-xs font-bold py-2 rounded hover:bg-indigo-200">Add Division</button>
-            </div>
-
-            <div id="divisionDisplay" class="space-y-2 mb-6 text-sm text-slate-600"></div>
-
-            <div class="flex gap-2">
-                <button onclick="changeStep(3)" class="w-1/3 bg-slate-200 font-bold py-3 rounded-xl">Back</button>
-                <button id="genBtn" onclick="generate()" class="w-2/3 bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-green-200">Generate Schedule 🚀</button>
-            </div>
+            <button id="genBtn" onclick="generate()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-xl shadow-lg">Generate Schedule 🚀</button>
         </div>
 
     </div>
@@ -126,152 +83,83 @@
         const auth = getAuth(app);
         const params = new URLSearchParams(window.location.search);
         const eventId = params.get('event');
-
-        if(!eventId) window.location.href = "director.html";
-        onAuthStateChanged(auth, u => { if(!u) window.location.href="director.html"; });
-
-        // STATE
         const divisions = [];
-        let pitches = [];
 
-        // --- UI HELPERS ---
-        window.selectFormat = (fmt, el) => {
-            document.getElementById('selectedFormat').value = fmt;
-            document.querySelectorAll('.format-card').forEach(c => c.classList.remove('selected'));
-            el.classList.add('selected');
-            document.getElementById('btnStep1').disabled = false;
-        };
+        if(!eventId) window.location.href="director.html";
+        onAuthStateChanged(auth, u=>{if(!u)window.location.href="director.html"});
 
         window.changeStep = (n) => {
-            document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.step').forEach(e => e.classList.remove('active'));
             document.getElementById(`step${n}`).classList.add('active');
             document.getElementById('stepNum').innerText = n;
         };
 
-        window.calcSlot = () => {
-            const game = parseInt(document.getElementById('gameTime').value) || 0;
-            const brk = parseInt(document.getElementById('breakTime').value) || 0;
-            document.getElementById('slotDur').value = game + brk;
-        };
-
-        // --- PITCH LOGIC (Robust) ---
-        window.bulkSetPitches = () => {
-            const count = parseInt(document.getElementById('bulkCount').value);
-            const start = document.getElementById('bulkStart').value;
-            pitches = [];
-            for(let i=0; i<count; i++) {
-                pitches.push({ id: i+1, start: start, end: "18:00" });
-            }
-            renderPitches();
-        };
-
-        window.renderPitches = () => {
-            const container = document.getElementById('pitchList');
-            container.innerHTML = '';
-            pitches.forEach((p, idx) => {
-                const div = document.createElement('div');
-                div.className = "flex items-center gap-2 bg-slate-100 p-2 rounded-lg";
-                div.innerHTML = `
-                    <span class="font-bold text-xs bg-slate-200 px-2 py-1 rounded w-16 text-center">Pitch ${p.id}</span>
-                    <input type="time" value="${p.start}" onchange="pitches[${idx}].start = this.value" class="p-1 border rounded text-xs">
-                    <span class="text-xs text-slate-400">to</span>
-                    <input type="time" value="${p.end}" onchange="pitches[${idx}].end = this.value" class="p-1 border rounded text-xs">
-                `;
-                container.appendChild(div);
-            });
-        };
-
-        // Initialize default
-        window.bulkSetPitches(); 
-
-        // --- TEAMS ---
         window.addDivision = () => {
             const name = document.getElementById('divName').value;
-            const teams = document.getElementById('teamList').value.split('\n').map(t=>t.trim()).filter(t=>t);
-            if(!name || teams.length < 2) return alert("Need name and 2+ teams");
+            const teams = document.getElementById('teamList').value.split(/[\n,]+/).map(t=>t.trim()).filter(t=>t);
+            if(!name || teams.length<2) return alert("Need name and 2+ teams");
+            
             divisions.push({ name, teams });
-            document.getElementById('divisionDisplay').innerHTML += `<div class="bg-white p-3 border rounded shadow-sm"><strong>${name}</strong>: ${teams.length} Teams</div>`;
-            document.getElementById('divName').value = ''; document.getElementById('teamList').value = '';
+            document.getElementById('divisionDisplay').innerHTML += `<div class="bg-white p-3 border rounded text-sm"><strong>${name}</strong>: ${teams.length} Teams</div>`;
+            document.getElementById('divName').value=''; document.getElementById('teamList').value='';
         };
 
-        // --- THE ENGINE ---
-        // Converts "09:30" -> 570 minutes
-        const toMins = (t) => {
-            const [h, m] = t.split(':').map(Number);
-            return (h * 60) + m;
-        };
-
-        // Converts 570 -> "09:30"
-        const toTime = (m) => {
-            const h = Math.floor(m / 60);
-            const mn = m % 60;
-            return `${String(h).padStart(2,'0')}:${String(mn).padStart(2,'0')}`;
+        // --- ROBUST GENERATOR ---
+        const addMins = (t, m) => {
+            let [hh,mm]=t.split(':').map(Number);
+            mm+=m; hh+=Math.floor(mm/60); mm%=60;
+            return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
         };
 
         window.generate = async () => {
             if(divisions.length === 0) return alert("Add a division first!");
-            const btn = document.getElementById('genBtn');
-            btn.innerText = "Calculating...";
-            btn.disabled = true;
 
-            const format = document.getElementById('selectedFormat').value;
-            const slotDur = parseInt(document.getElementById('slotDur').value);
-
-            // 1. Build Match Queue
-            let matchQueue = [];
+            // 1. GATHER MATCHES
+            let matches = [];
             divisions.forEach(div => {
-                if (format === 'league') {
-                    for(let i=0; i<div.teams.length; i++) {
-                        for(let j=i+1; j<div.teams.length; j++) {
-                            matchQueue.push({ teamA: div.teams[i], teamB: div.teams[j], division: div.name, status: 'scheduled', scoreA:0, scoreB:0 });
-                        }
-                    }
-                } else {
-                    for(let i=0; i<div.teams.length; i+=2) {
-                        matchQueue.push({ teamA: div.teams[i], teamB: div.teams[i+1]||"BYE", division: div.name, status: 'scheduled', scoreA:0, scoreB:0 });
+                for(let i=0; i<div.teams.length; i++) {
+                    for(let j=i+1; j<div.teams.length; j++) {
+                        matches.push({
+                            teamA: div.teams[i], teamB: div.teams[j], 
+                            division: div.name, status: 'scheduled', scoreA:0, scoreB:0
+                        });
                     }
                 }
             });
 
-            // 2. Setup Pitch Trackers
-            // Each pitch keeps track of its "next available minute"
-            let pitchTrackers = pitches.map(p => ({
-                id: p.id,
-                nextFree: toMins(p.start),
-                closeTime: toMins(p.end)
-            }));
+            if(!confirm(`I calculated ${matches.length} matches for ${divisions[0].teams.length} teams.\n\n(Formula: N x (N-1) / 2)\n\nProceed?`)) return;
+
+            const btn = document.getElementById('genBtn');
+            btn.innerText = "Processing...";
+            btn.disabled = true;
 
             const scheduleRef = ref(db, `tournaments/${eventId}/schedule`);
-            await set(scheduleRef, null); // Clear old
+            await set(scheduleRef, null);
 
-            const promises = matchQueue.map(match => {
-                // Find the pitch with the EARLIEST free time
-                // Filter out pitches that are already closed (freeTime + gameDuration > closeTime)
-                
-                // Sort by earliest available time
-                pitchTrackers.sort((a,b) => a.nextFree - b.nextFree);
-                
-                // Pick the first one that fits
-                let selectedPitch = pitchTrackers.find(p => (p.nextFree + slotDur) <= p.closeTime);
+            // 2. DISTRIBUTE (Dealing Cards Logic)
+            const pitchCount = parseInt(document.getElementById('pitchCount').value);
+            const slotDur = parseInt(document.getElementById('slotDur').value);
+            let startTime = document.getElementById('startTime').value;
 
-                // If all full, force overbook the last one (fallback)
-                if(!selectedPitch) selectedPitch = pitchTrackers[0];
+            // Pitch Trackers: [ "09:00", "09:00", "09:00" ]
+            let pitchTimes = Array(pitchCount).fill(startTime);
 
-                // Assign
-                match.timeSlot = toTime(selectedPitch.nextFree);
-                match.field = selectedPitch.id;
-                
-                // Update tracker
-                selectedPitch.nextFree += slotDur;
+            const promises = matches.map((match, index) => {
+                // Round Robin assignment: Match 0 -> Pitch 0, Match 1 -> Pitch 1...
+                const pitchIndex = index % pitchCount; // 0, 1, 2, 0, 1, 2...
+                const pitchId = pitchIndex + 1;        // 1, 2, 3...
+
+                match.field = pitchId;
+                match.timeSlot = pitchTimes[pitchIndex];
+
+                // Update that pitch's next available time
+                pitchTimes[pitchIndex] = addMins(pitchTimes[pitchIndex], slotDur);
 
                 return push(scheduleRef, match);
             });
 
-            // Init Live Match
+            // Init Match
             await set(ref(db, `tournaments/${eventId}/match`), { teamA:"TBD", teamB:"TBD", scoreA:0, scoreB:0, isRunning:false });
-            
-            // Save Settings
-            await set(ref(db, `tournaments/${eventId}/settings`), { format, slotDur });
 
             Promise.all(promises).then(() => {
                 window.location.href = `review.html?event=${eventId}`;
