@@ -281,28 +281,35 @@
                 allMatches = weaved;
             }
 
-            // 4. ASSIGN PITCHES
+           // 4. ASSIGN PITCHES (SMART SURFACE LOGIC)
             const scheduleRef = ref(db, `tournaments/${eventId}/schedule`);
             await set(scheduleRef, null);
 
-            let pitchTimes = Array(pitchCount).fill(9 * 60); // 09:00 start
+            // Define Pitches (1=Astro, 2+3=Grass based on your map)
+            // We track the time for each pitch independently
+            let pitchTimes = Array(pitchCount).fill(9 * 60 + 40); // Start 09:40 (matches PDF)
             const toTime = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
             
             const promises = allMatches.map(m => {
-                // Find earliest pitch
+                // Find pitch with earliest available time
                 let pIdx = 0;
-                for(let p=1; p<pitchCount; p++) if(pitchTimes[p] < pitchTimes[pIdx]) pIdx = p;
+                for(let p=1; p<pitchCount; p++) {
+                    if(pitchTimes[p] < pitchTimes[pIdx]) pIdx = p;
+                }
                 
-                m.field = pIdx + 1;
+                // OPTIONAL: If Surface Constraint is ON, we could try to keep 
+                // this team on the same pitch as their previous game.
+                // For now, we prioritize TIME (filling the schedule efficiently).
+                
+                m.field = pIdx + 1; // Pitch 1, 2, 3
                 m.timeSlot = toTime(pitchTimes[pIdx]);
+                
+                // Add tag for the UI
+                m.surface = (m.field === 1) ? 'Astro' : 'Grass'; 
                 
                 pitchTimes[pIdx] += slotDur;
                 return push(scheduleRef, m);
             });
-
-            await set(ref(db, `tournaments/${eventId}/match`), { teamA:"TBD", teamB:"TBD", scoreA:0, scoreB:0, isRunning:false });
-            Promise.all(promises).then(() => window.location.href = `manage.html?event=${eventId}`);
-        };
     </script>
 </body>
 </html>
