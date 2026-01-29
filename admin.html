@@ -138,9 +138,9 @@
         </div>
     </div>
 
-    <script type="module">
+             <script type="module">
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-        import { getDatabase, ref, set, push } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+        import { getDatabase, ref, set, push, update } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
         import { app, db } from './firebase-config.js';
 
         const auth = getAuth(app);
@@ -221,7 +221,7 @@
             changeStep(3);
         };
 
-        // --- 3. THE "TETRIS" SCHEDULER (Fill Gaps) ---
+        // --- 3. TETRIS SCHEDULER (Working correctly per screenshot) ---
         window.generatePreview = () => {
             pendingMatches = [];
             const slotDur = parseInt(document.getElementById('gameDur').value) + parseInt(document.getElementById('breakDur').value);
@@ -231,7 +231,6 @@
             let matchPools = [];
             let allTeamNames = new Set();
 
-            // A. Create Matches
             for(let i=0; i<divCount; i++) {
                 const divName = document.getElementById(`divName_${i}`).value;
                 const rawTeams = document.getElementById(`divTeams_${i}`).value.split(/[\r\n,]+/).map(t=>t.trim()).filter(t=>t);
@@ -248,7 +247,6 @@
             }
             if(matchPools.length === 0) return alert("Please enter at least 2 teams.");
 
-            // B. Queue Up Matches
             let matchQueue = [];
             if(flow === 'block') matchPools.forEach(p => matchQueue.push(...p));
             else {
@@ -257,8 +255,7 @@
             }
             if(config.type === 'groups_final') matchQueue.push({teamA:"Winner A", teamB:"Winner B", division:"Final", type:'final'});
 
-            // C. TETRIS LOGIC (Fill Gaps)
-            let pitchAvail = Array(pitchCount).fill(0); // Mins from start
+            let pitchAvail = Array(pitchCount).fill(0); 
             let teamAvail = {};
             allTeamNames.forEach(t => teamAvail[t] = 0);
             ["Winner A", "Winner B", "Winner Div 1", "Winner Div 2", "BYE"].forEach(t => teamAvail[t] = 0);
@@ -266,94 +263,85 @@
             const START = 9 * 60; 
             const toTime = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
 
-            // Process queue until empty
             while(matchQueue.length > 0) {
-                
-                // 1. Find the Pitch with the earliest open slot (The "Hole")
                 let bestPitch = 0;
                 for(let p=1; p<pitchCount; p++) {
                     if(pitchAvail[p] < pitchAvail[bestPitch]) bestPitch = p;
                 }
                 let slotTime = pitchAvail[bestPitch];
 
-                // 2. Scan queue for the FIRST match that can fit in this hole
                 let bestMatchIdx = -1;
-                
                 for(let i=0; i<matchQueue.length; i++) {
                     const m = matchQueue[i];
                     const tA = teamAvail[m.teamA] || 0;
                     const tB = teamAvail[m.teamB] || 0;
-                    
-                    // If both teams are free by the time this pitch is free
-                    if (tA <= slotTime && tB <= slotTime) {
-                        bestMatchIdx = i;
-                        break; // Found the perfect piece!
-                    }
+                    if (tA <= slotTime && tB <= slotTime) { bestMatchIdx = i; break; }
                 }
 
-                // 3. If no match fits perfectly right now (everyone busy)
                 if (bestMatchIdx === -1) {
-                    // We need to advance the time of this pitch to when SOMEONE is free
-                    // Find the absolute earliest any match in the queue *could* be ready
                     let earliestPossible = Infinity;
                     for(let i=0; i<matchQueue.length; i++) {
                         const m = matchQueue[i];
                         const ready = Math.max(teamAvail[m.teamA]||0, teamAvail[m.teamB]||0);
-                        if(ready < earliestPossible) {
-                            earliestPossible = ready;
-                            bestMatchIdx = i;
-                        }
+                        if(ready < earliestPossible) { earliestPossible = ready; bestMatchIdx = i; }
                     }
-                    // Jump pitch time to that moment
                     slotTime = earliestPossible;
                 }
 
-                // 4. Schedule It
                 const m = matchQueue.splice(bestMatchIdx, 1)[0];
                 m.field = bestPitch + 1;
                 m.timeSlot = toTime(START + slotTime);
                 m.scoreA = 0; m.scoreB = 0; m.status = 'scheduled';
                 
-                // Locks
                 const finish = slotTime + slotDur;
                 pitchAvail[bestPitch] = finish;
                 teamAvail[m.teamA] = finish;
                 teamAvail[m.teamB] = finish;
-                
                 pendingMatches.push(m);
             }
 
-            // D. Sort by Time for Preview (Optional, makes table readable)
             pendingMatches.sort((a,b) => (a.timeSlot+a.field).localeCompare(b.timeSlot+b.field));
-
-            // E. Render Preview
             const tbody = document.getElementById('previewBody');
             tbody.innerHTML = '';
             pendingMatches.forEach(m => {
-                tbody.innerHTML += `
-                    <tr class="hover:bg-slate-100">
-                        <td class="p-2 border-b font-mono text-xs">${m.timeSlot}</td>
-                        <td class="p-2 border-b text-xs font-bold">P${m.field}</td>
-                        <td class="p-2 border-b text-xs">${m.teamA} vs ${m.teamB} <span class="text-slate-400">(${m.division})</span></td>
-                    </tr>`;
+                tbody.innerHTML += `<tr class="hover:bg-slate-100"><td class="p-2 border-b font-mono text-xs">${m.timeSlot}</td><td class="p-2 border-b text-xs font-bold">P${m.field}</td><td class="p-2 border-b text-xs">${m.teamA} vs ${m.teamB} <span class="text-slate-400">(${m.division})</span></td></tr>`;
             });
             document.getElementById('previewCount').innerText = `${pendingMatches.length} Matches`;
             document.getElementById('previewContainer').classList.remove('hidden');
             document.getElementById('previewBtn').classList.add('hidden');
         };
 
-        // --- 4. CONFIRM & UPLOAD ---
+        // --- 4. ATOMIC UPLOAD (The Fix) ---
         window.confirmUpload = async () => {
             const btn = document.getElementById('uploadBtn');
-            btn.innerText = "Uploading to Database..."; btn.disabled = true;
+            btn.innerText = "Saving Bundle..."; btn.disabled = true;
 
-            const scheduleRef = ref(db, `tournaments/${eventId}/schedule`);
-            await set(scheduleRef, null); 
-            const promises = pendingMatches.map(m => push(scheduleRef, m));
-            await set(ref(db, `tournaments/${eventId}/match`), { teamA:"--", teamB:"--", scoreA:0, scoreB:0, isRunning:false });
-            await Promise.all(promises);
-            window.location.href = `manage.html?event=${eventId}`;
+            try {
+                // 1. Prepare one BIG data object
+                const scheduleRef = ref(db, `tournaments/${eventId}/schedule`);
+                const fullScheduleData = {};
+
+                // 2. Convert array to object with unique IDs
+                pendingMatches.forEach(m => {
+                    const newKey = push(scheduleRef).key; // Generate key locally
+                    fullScheduleData[newKey] = m;
+                });
+
+                // 3. ATOMIC WRITE: This sends everything in ONE connection
+                await set(scheduleRef, fullScheduleData);
+                
+                // 4. Reset Live Match status
+                await set(ref(db, `tournaments/${eventId}/match`), { teamA:"--", teamB:"--", scoreA:0, scoreB:0, isRunning:false });
+
+                // 5. Success!
+                window.location.href = `manage.html?event=${eventId}`;
+            } catch (err) {
+                alert("Upload failed: " + err.message);
+                btn.disabled = false;
+                btn.innerText = "Retry Upload";
+            }
         };
-    </script>
+            </script>
+    
 </body>
 </html>
