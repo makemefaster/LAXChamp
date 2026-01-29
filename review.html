@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review Schedule</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen p-6 font-sans text-slate-800">
+
+    <div class="max-w-3xl mx-auto">
+        <h1 class="text-3xl font-black mb-6">Review Schedule</h1>
+
+        <div class="bg-white rounded-xl shadow-sm border p-6 mb-6 flex justify-between items-center">
+            <div>
+                <p class="text-xs font-bold uppercase text-slate-400">First Whistle</p>
+                <p id="startTime" class="text-2xl font-bold">--:--</p>
+            </div>
+            <div>
+                <p class="text-xs font-bold uppercase text-slate-400">Last Whistle (Approx)</p>
+                <p id="endTime" class="text-2xl font-bold text-indigo-600">--:--</p>
+            </div>
+            <div>
+                <p class="text-xs font-bold uppercase text-slate-400">Total Matches</p>
+                <p id="matchCount" class="text-2xl font-bold">0</p>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border overflow-hidden mb-8">
+            <div class="bg-slate-50 p-3 border-b text-xs font-bold uppercase text-slate-500 grid grid-cols-12 gap-2">
+                <div class="col-span-2">Time</div>
+                <div class="col-span-2">Pitch</div>
+                <div class="col-span-3">Division</div>
+                <div class="col-span-5">Matchup</div>
+            </div>
+            <div id="matchList" class="divide-y divide-slate-100 max-h-[500px] overflow-y-auto">
+                <div class="p-8 text-center text-slate-400">Loading...</div>
+            </div>
+        </div>
+
+        <div class="flex gap-4">
+            <a id="backLink" href="#" class="px-6 py-4 rounded-xl font-bold text-slate-500 bg-white border shadow-sm hover:bg-slate-50">← Redo Setup</a>
+            <a id="confirmLink" href="#" class="flex-1 px-6 py-4 rounded-xl font-bold text-white bg-green-600 shadow-lg hover:bg-green-500 text-center text-lg">
+                ✅ Approve & Launch Manager
+            </a>
+        </div>
+    </div>
+
+    <script type="module">
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+        import { app, db } from './firebase-config.js';
+
+        const params = new URLSearchParams(window.location.search);
+        const eventId = params.get('event');
+        
+        document.getElementById('backLink').href = `admin.html?event=${eventId}`;
+        document.getElementById('confirmLink').href = `manage.html?event=${eventId}`;
+
+        // Load Schedule
+        onValue(ref(db, `tournaments/${eventId}/schedule`), snap => {
+            const matches = [];
+            snap.forEach(c => matches.push(c.val()));
+            
+            // Sort
+            matches.sort((a,b) => (a.timeSlot + a.field).localeCompare(b.timeSlot + b.field));
+
+            // Populate List
+            const list = document.getElementById('matchList');
+            list.innerHTML = '';
+            matches.forEach(m => {
+                const row = document.createElement('div');
+                row.className = "p-3 text-sm grid grid-cols-12 gap-2 hover:bg-slate-50";
+                row.innerHTML = `
+                    <div class="col-span-2 font-bold">${m.timeSlot}</div>
+                    <div class="col-span-2 text-slate-500">P${m.field}</div>
+                    <div class="col-span-3"><span class="bg-slate-100 px-2 py-1 rounded text-xs font-bold">${m.division}</span></div>
+                    <div class="col-span-5 font-medium">${m.teamA} vs ${m.teamB}</div>
+                `;
+                list.appendChild(row);
+            });
+
+            // Calculate Stats
+            if(matches.length > 0) {
+                document.getElementById('matchCount').innerText = matches.length;
+                document.getElementById('startTime').innerText = matches[0].timeSlot;
+                
+                // Calculate End Time (Last Slot + Duration)
+                // We need to fetch duration from settings, but for now lets infer or fetch
+                // Simpler: Just show the START time of the last match
+                const lastMatch = matches[matches.length - 1];
+                document.getElementById('endTime').innerText = `~ ${lastMatch.timeSlot} (Start)`;
+            }
+        });
+    </script>
+</body>
+</html>
