@@ -5,58 +5,54 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Umpire Control</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>body { background-color: #000; color: white; touch-action: manipulation; }</style>
+    <style>
+        .btn-score { touch-action: manipulation; transition: transform 0.1s; }
+        .btn-score:active { transform: scale(0.95); }
+    </style>
 </head>
-<body class="flex flex-col h-screen">
+<body class="bg-black text-white min-h-screen flex flex-col items-center justify-between p-4 font-sans">
 
-    <div class="bg-slate-900 p-4 flex justify-between items-center border-b border-slate-800">
-        <div>
-            <h1 class="text-lg font-bold text-slate-200">Pitch Control</h1>
-            <p id="matchInfo" class="text-xs text-slate-500">Waiting for assignment...</p>
-        </div>
-        <div class="text-right">
-             <button onclick="toggleOptions()" class="bg-slate-700 px-3 py-2 rounded text-xs font-bold">⚙️ Options</button>
-        </div>
+    <div class="w-full text-center border-b border-gray-800 pb-2 mb-2">
+        <h1 class="text-xs font-bold text-gray-500 uppercase tracking-widest">Official Umpire Interface</h1>
+        <div id="statusBadge" class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-gray-800 text-gray-400 mt-1">WAITING FOR GAME</div>
     </div>
 
-    <div class="flex-1 grid grid-cols-2 divide-x divide-slate-800">
-        <div class="flex flex-col">
-            <div class="flex-1 flex flex-col items-center justify-center p-4 bg-slate-900/50">
-                <h2 id="nameA" class="text-xl font-bold text-slate-300 mb-2 text-center">Home</h2>
-                <div id="scoreA" class="text-8xl font-black text-white">0</div>
+    <div class="flex-1 w-full max-w-md flex flex-col justify-center gap-6">
+        
+        <div class="bg-gray-900 rounded-2xl p-6 border border-gray-800 relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-2 h-full bg-blue-500"></div>
+            <h2 id="nameA" class="text-xl font-bold text-gray-300 mb-2 truncate">Home</h2>
+            <div class="flex justify-between items-center">
+                <button onclick="modScore('A', -1)" class="w-16 h-16 rounded-full bg-gray-800 text-gray-400 text-2xl font-bold btn-score control-btn">-</button>
+                <div id="scoreA" class="text-7xl font-black text-white">0</div>
+                <button onclick="modScore('A', 1)" class="w-16 h-16 rounded-full bg-blue-600 text-white text-3xl font-bold btn-score control-btn shadow-lg shadow-blue-900/50">+</button>
             </div>
-            <button onclick="modScore('A', 1)" class="h-24 bg-green-700 active:bg-green-600 text-3xl font-bold border-t border-black">+1</button>
-            <button onclick="modScore('A', -1)" class="h-16 bg-slate-800 active:bg-slate-700 text-sm font-bold text-red-400 border-t border-black">Undo</button>
         </div>
 
-        <div class="flex flex-col">
-            <div class="flex-1 flex flex-col items-center justify-center p-4 bg-slate-900/50">
-                <h2 id="nameB" class="text-xl font-bold text-slate-300 mb-2 text-center">Away</h2>
-                <div id="scoreB" class="text-8xl font-black text-white">0</div>
-            </div>
-            <button onclick="modScore('B', 1)" class="h-24 bg-blue-700 active:bg-blue-600 text-3xl font-bold border-t border-black">+1</button>
-            <button onclick="modScore('B', -1)" class="h-16 bg-slate-800 active:bg-slate-700 text-sm font-bold text-red-400 border-t border-black">Undo</button>
+        <div class="text-center py-2">
+            <div id="timerDisplay" class="text-5xl font-mono font-bold tracking-wider text-yellow-400">00:00</div>
+            <button id="timerBtn" onclick="toggleTimer()" class="mt-2 text-sm text-gray-400 border border-gray-700 px-4 py-1 rounded-full control-btn">Start Clock</button>
         </div>
-    </div>
 
-    <div class="bg-black p-4 flex gap-2">
-         <div id="timerDisplay" class="flex-1 bg-slate-900 text-yellow-400 font-mono text-4xl text-center rounded py-2 border border-slate-800">00:00</div>
-         <button onclick="toggleTimer()" id="timerBtn" class="w-1/3 bg-slate-700 font-bold rounded">Start</button>
-    </div>
-
-    <div id="optionsModal" class="hidden fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-6">
-        <div class="w-full max-w-sm bg-slate-800 rounded-xl p-6 border border-slate-700">
-            <h3 class="font-bold text-lg mb-4 text-white">Match Actions</h3>
-            
-            <div class="space-y-3">
-                <button onclick="finishGame()" class="w-full bg-indigo-600 py-4 rounded font-bold text-white">🏁 End Game & Save</button>
-                <div class="h-px bg-slate-700 my-2"></div>
-                <p class="text-xs text-slate-400 uppercase font-bold">Walkovers / Forfeits</p>
-                <button onclick="walkover('A')" class="w-full bg-red-900/50 text-red-200 border border-red-900 py-3 rounded text-sm">Team A Wins (Walkover)</button>
-                <button onclick="walkover('B')" class="w-full bg-red-900/50 text-red-200 border border-red-900 py-3 rounded text-sm">Team B Wins (Walkover)</button>
+        <div class="bg-gray-900 rounded-2xl p-6 border border-gray-800 relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-2 h-full bg-orange-500"></div>
+            <h2 id="nameB" class="text-xl font-bold text-gray-300 mb-2 truncate">Away</h2>
+            <div class="flex justify-between items-center">
+                <button onclick="modScore('B', -1)" class="w-16 h-16 rounded-full bg-gray-800 text-gray-400 text-2xl font-bold btn-score control-btn">-</button>
+                <div id="scoreB" class="text-7xl font-black text-white">0</div>
+                <button onclick="modScore('B', 1)" class="w-16 h-16 rounded-full bg-orange-600 text-white text-3xl font-bold btn-score control-btn shadow-lg shadow-orange-900/50">+</button>
             </div>
+        </div>
 
-            <button onclick="toggleOptions()" class="mt-6 w-full py-3 text-slate-400 font-bold">Close</button>
+    </div>
+
+    <div class="w-full max-w-md mt-6 mb-4">
+        <button id="finalizeBtn" onclick="finalizeMatch()" class="w-full bg-green-700 hover:bg-green-600 text-white font-bold py-4 rounded-xl text-lg shadow-lg transition control-btn">
+            FINALIZE MATCH ✅
+        </button>
+        <div id="lockedMsg" class="hidden text-center p-4 bg-gray-900 rounded-xl border border-gray-700">
+            <p class="text-green-500 font-bold text-lg">MATCH COMPLETED</p>
+            <p class="text-gray-500 text-xs">Scores have been submitted.</p>
         </div>
     </div>
 
@@ -64,128 +60,21 @@
         import { getDatabase, ref, onValue, update, increment, get } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
         import { app, db } from './firebase-config.js';
 
-        const eventId = new URLSearchParams(window.location.search).get('event');
-        if(!eventId) alert("No Event ID");
+        const params = new URLSearchParams(window.location.search);
+        const eventId = params.get('event');
+        if(!eventId) document.body.innerHTML = "<h1 class='text-white text-center mt-10'>No Event ID</h1>";
 
-        let activeMatchKey = null;
-        let isRunning = false;
-        let time = 0;
-        let timerInterval = null;
+        const matchRef = ref(db, `tournaments/${eventId}/match`);
+        let isRunning = false; 
+        let time = 0; 
+        let interval = null;
+        let scheduleKey = null;
 
-        // Listen to the ACTIVE MATCH node (Controlled by Director)
-        onValue(ref(db, `tournaments/${eventId}/match`), (snap) => {
+        // 1. SYNC WITH DB
+        onValue(matchRef, (snap) => {
             const data = snap.val();
             if(!data) return;
 
-            // Basic Update
-            document.getElementById('nameA').innerText = data.teamA;
-            document.getElementById('nameB').innerText = data.teamB;
-            document.getElementById('scoreA').innerText = data.scoreA;
-            document.getElementById('scoreB').innerText = data.scoreB;
-            
-            // Sync Meta
-            activeMatchKey = data.scheduleKey; // CRITICAL: This lets us write back to the schedule
-            document.getElementById('matchInfo').innerText = `${data.division || 'Open'} • ${activeMatchKey ? 'Live' : 'No Sync'}`;
-
-            // Sync Timer
-            time = data.time || 0;
-            isRunning = data.isRunning || false;
-            renderTimer();
-            
-            if(isRunning && !timerInterval) startLocalTimer();
-            if(!isRunning && timerInterval) stopLocalTimer();
-            
-            // Update Button State
-            const btn = document.getElementById('timerBtn');
-            btn.innerText = isRunning ? "Stop" : "Start";
-            btn.className = isRunning ? "w-1/3 bg-red-600 font-bold rounded" : "w-1/3 bg-green-600 font-bold rounded";
-        });
-
-        // --- SCORE LOGIC ---
-        window.modScore = (team, amount) => {
-            // Update MAIN match node (Live View)
-            const updates = {};
-            updates[`tournaments/${eventId}/match/score${team}`] = increment(amount);
-            
-            // ALSO Update SCHEDULE node (Permanent Record)
-            if(activeMatchKey) {
-                updates[`tournaments/${eventId}/schedule/${activeMatchKey}/score${team}`] = increment(amount);
-            }
-            update(ref(db), updates);
-        };
-
-        // --- TIMER LOGIC ---
-        function startLocalTimer() {
-            if(timerInterval) clearInterval(timerInterval);
-            timerInterval = setInterval(() => {
-                if(time > 0) {
-                    time--;
-                    renderTimer();
-                    // Sync to DB every 5 seconds to save bandwidth
-                    if(time % 5 === 0) update(ref(db, `tournaments/${eventId}/match`), { time: time });
-                } else {
-                    stopLocalTimer();
-                    update(ref(db, `tournaments/${eventId}/match`), { isRunning: false, time: 0 });
-                }
-            }, 1000);
-        }
-
-        function stopLocalTimer() {
-            clearInterval(timerInterval);
-            timerInterval = null;
-        }
-
-        function renderTimer() {
-            const m = Math.floor(time/60).toString().padStart(2,'0');
-            const s = (time%60).toString().padStart(2,'0');
-            document.getElementById('timerDisplay').innerText = `${m}:${s}`;
-        }
-
-        window.toggleTimer = () => {
-            update(ref(db, `tournaments/${eventId}/match`), { isRunning: !isRunning });
-        };
-
-        // --- ACTIONS ---
-        window.toggleOptions = () => document.getElementById('optionsModal').classList.toggle('hidden');
-
-        window.finishGame = () => {
-            if(!confirm("End game? This will save the final score.")) return;
-            if(activeMatchKey) {
-                update(ref(db, `tournaments/${eventId}/schedule/${activeMatchKey}`), { status: 'finished' });
-            }
-            // Reset live board
-            update(ref(db, `tournaments/${eventId}/match`), { 
-                teamA: '--', teamB: '--', scoreA: 0, scoreB: 0, isRunning: false, scheduleKey: null 
-            });
-            toggleOptions();
-        };
-
-        window.walkover = (winner) => {
-            if(!confirm(`Award 3-0 Walkover to Team ${winner}?`)) return;
-            const scoreA = winner === 'A' ? 3 : 0;
-            const scoreB = winner === 'B' ? 3 : 0;
-
-            // Update Match & Schedule
-            const updates = {};
-            const pathMatch = `tournaments/${eventId}/match`;
-            const pathSched = `tournaments/${eventId}/schedule/${activeMatchKey}`;
-
-            updates[`${pathMatch}/scoreA`] = scoreA;
-            updates[`${pathMatch}/scoreB`] = scoreB;
-            updates[`${pathMatch}/isRunning`] = false;
-            
-            if(activeMatchKey) {
-                updates[`${pathSched}/scoreA`] = scoreA;
-                updates[`${pathSched}/scoreB`] = scoreB;
-                updates[`${pathSched}/status`] = 'finished';
-                updates[`${pathSched}/note`] = 'Walkover';
-            }
-
-            update(ref(db), updates);
-            toggleOptions();
-            alert("Walkover Recorded. Game Finished.");
-        };
-
-    </script>
-</body>
-</html>
+            document.getElementById('nameA').innerText = data.teamA || 'Home';
+            document.getElementById('nameB').innerText = data.teamB || 'Away
+                
