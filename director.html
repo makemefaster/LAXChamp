@@ -32,7 +32,7 @@
                 <label class="block text-xs font-bold text-slate-400 mb-2 uppercase">Create New Event</label>
                 <div class="flex gap-2">
                     <input type="text" id="newEventName" placeholder="e.g. Summer Slam" class="flex-1 p-2 rounded bg-slate-900 border border-slate-600 text-sm focus:outline-none">
-                    <button onclick="createEvent()" class="bg-green-600 hover:bg-green-500 px-4 py-2 rounded text-sm font-bold">Create</button>
+                    <button onclick="createNewTournament()" class="bg-green-600 hover:bg-green-500 px-4 py-2 rounded text-sm font-bold">Create</button>
                 </div>
             </div>
         </div>
@@ -41,6 +41,7 @@
     <script type="module">
         import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
         import { getDatabase, ref, set, onValue, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+        // Ensure this path matches your file structure
         import { app, db } from './firebase-config.js';
 
         const auth = getAuth(app);
@@ -64,7 +65,8 @@
 
         window.logout = () => signOut(auth);
 
-        window.createEvent = () => {
+        // RENAMED FUNCTION HERE TO FIX BUG
+        window.createNewTournament = () => {
             const name = document.getElementById('newEventName').value;
             if(!name) return;
 
@@ -113,6 +115,7 @@
         }
 
         window.copyLink = (id) => {
+            // Updated to ensure it links to index.html properly
             const url = `${window.location.origin}${window.location.pathname.replace('director.html', '')}index.html?event=${id}`;
             navigator.clipboard.writeText(url);
             alert("Public Link Copied:\n" + url);
