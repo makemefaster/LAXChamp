@@ -11,13 +11,18 @@
     <div class="max-w-3xl mx-auto">
         <h1 class="text-3xl font-black mb-6">Review Schedule</h1>
 
+        <div id="debugBox" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 hidden">
+            <p class="font-bold">Diagnostics:</p>
+            <p id="debugMsg">Loading...</p>
+        </div>
+
         <div class="bg-white rounded-xl shadow-sm border p-6 mb-6 flex justify-between items-center">
             <div>
                 <p class="text-xs font-bold uppercase text-slate-400">First Whistle</p>
                 <p id="startTime" class="text-2xl font-bold">--:--</p>
             </div>
             <div>
-                <p class="text-xs font-bold uppercase text-slate-400">Last Whistle (Approx)</p>
+                <p class="text-xs font-bold uppercase text-slate-400">Last Whistle</p>
                 <p id="endTime" class="text-2xl font-bold text-indigo-600">--:--</p>
             </div>
             <div>
@@ -33,8 +38,9 @@
                 <div class="col-span-3">Division</div>
                 <div class="col-span-5">Matchup</div>
             </div>
-            <div id="matchList" class="divide-y divide-slate-100 max-h-[500px] overflow-y-auto">
-                <div class="p-8 text-center text-slate-400">Loading...</div>
+            
+            <div id="matchList" class="divide-y divide-slate-100 max-h-[600px] overflow-y-auto">
+                <div class="p-8 text-center text-slate-400">Loading data...</div>
             </div>
         </div>
 
@@ -53,44 +59,53 @@
         const params = new URLSearchParams(window.location.search);
         const eventId = params.get('event');
         
-        document.getElementById('backLink').href = `admin.html?event=${eventId}`;
-        document.getElementById('confirmLink').href = `manage.html?event=${eventId}`;
+        // Update Links
+        if(eventId) {
+            document.getElementById('backLink').href = `admin.html?event=${eventId}`;
+            document.getElementById('confirmLink').href = `manage.html?event=${eventId}`;
+        }
 
-        // Load Schedule
-        onValue(ref(db, `tournaments/${eventId}/schedule`), snap => {
-            const matches = [];
-            snap.forEach(c => matches.push(c.val()));
-            
-            // Sort
-            matches.sort((a,b) => (a.timeSlot + a.field).localeCompare(b.timeSlot + b.field));
-
-            // Populate List
+        // --- ROBUST DATA LOADER ---
+        const scheduleRef = ref(db, `tournaments/${eventId}/schedule`);
+        
+        onValue(scheduleRef, (snapshot) => {
+            const rawData = snapshot.val();
             const list = document.getElementById('matchList');
-            list.innerHTML = '';
-            matches.forEach(m => {
-                const row = document.createElement('div');
-                row.className = "p-3 text-sm grid grid-cols-12 gap-2 hover:bg-slate-50";
-                row.innerHTML = `
-                    <div class="col-span-2 font-bold">${m.timeSlot}</div>
-                    <div class="col-span-2 text-slate-500">P${m.field}</div>
-                    <div class="col-span-3"><span class="bg-slate-100 px-2 py-1 rounded text-xs font-bold">${m.division}</span></div>
-                    <div class="col-span-5 font-medium">${m.teamA} vs ${m.teamB}</div>
-                `;
-                list.appendChild(row);
+            const debugBox = document.getElementById('debugBox');
+            const debugMsg = document.getElementById('debugMsg');
+
+            // 1. HANDLE EMPTY DATA
+            if (!rawData) {
+                list.innerHTML = '<div class="p-8 text-center text-red-400">No schedule data found in database.</div>';
+                debugBox.classList.remove('hidden');
+                debugMsg.innerText = "Database returned null. Please go back and Generate again.";
+                return;
+            }
+
+            // 2. CONVERT OBJECT TO ARRAY (The Fix)
+            // This grabs all children, regardless of key format
+            const matches = Object.values(rawData);
+            
+            // DIAGNOSTICS
+            if(matches.length !== 15) {
+                debugBox.classList.remove('hidden');
+                debugMsg.innerText = `Warning: Database has ${matches.length} items. (Expected 15)`;
+            }
+
+            // 3. SORT
+            matches.sort((a,b) => {
+                const timeA = a.timeSlot || '00:00';
+                const timeB = b.timeSlot || '00:00';
+                if(timeA !== timeB) return timeA.localeCompare(timeB);
+                return (a.field || 0) - (b.field || 0);
             });
 
-            // Calculate Stats
-            if(matches.length > 0) {
-                document.getElementById('matchCount').innerText = matches.length;
+            // 4. RENDER STATS
+            document.getElementById('matchCount').innerText = matches.length;
+            if (matches.length > 0) {
                 document.getElementById('startTime').innerText = matches[0].timeSlot;
-                
-                // Calculate End Time (Last Slot + Duration)
-                // We need to fetch duration from settings, but for now lets infer or fetch
-                // Simpler: Just show the START time of the last match
-                const lastMatch = matches[matches.length - 1];
-                document.getElementById('endTime').innerText = `~ ${lastMatch.timeSlot} (Start)`;
+                document.getElementById('endTime').innerText = matches[matches.length-1].timeSlot + " (Start)";
             }
-        });
-    </script>
-</body>
-</html>
+
+            // 5. RENDER LIST
+            list.innerHTML = '';
