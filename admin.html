@@ -197,4 +197,180 @@
             div.className = `option-card bg-white p-4 rounded-xl border shadow-sm relative cursor-pointer flex flex-col justify-between h-48 ${isPossible ? 'recommended' : 'impossible'}`;
             div.onclick = () => { if(isPossible) selectFormat(opt); };
             div.innerHTML = `
-                <div><div class="flex justify-between items-start mb-2"><div class="text-3xl">${opt.icon}</div><div class="text-right"><span class="block text-lg font-black ${isPossible?'':'text-red-400'}
+                <div><div class="flex justify-between items-start mb-2"><div class="text-3xl">${opt.icon}</div><div class="text-right"><span class="block text-lg font-black ${isPossible?'':'text-red-400'}">${Math.floor(totalMins/60)}h ${totalMins%60}m</span></div></div>
+                <h3 class="font-bold text-md leading-tight">${opt.title}</h3><p class="text-xs text-slate-500 mt-1 leading-snug">${opt.desc}</p></div>
+                <div class="mt-2"><div class="w-full bg-slate-100 rounded-full h-1.5 mb-2 overflow-hidden"><div class="h-full ${isPossible?'bg-green-500':'bg-red-500'}" style="width:${Math.min(percent,100)}%"></div></div><div class="flex justify-between text-[10px] uppercase font-bold text-slate-400"><span>${opt.matches} Games</span><span>${percent}% Cap</span></div></div>`;
+            document.getElementById('optionsGrid').appendChild(div);
+        }
+
+        window.selectFormat = (opt) => {
+            config = opt;
+            document.getElementById('chosenFormatDisplay').innerText = opt.title;
+            document.getElementById('chosenDetailsDisplay').innerText = opt.desc;
+            document.getElementById('chosenIcon').innerText = opt.icon;
+            const container = document.getElementById('divisionInputs');
+            container.innerHTML = '';
+            const count = opt.param || 1;
+            for(let i=0; i<count; i++) {
+                const defaultName = (count === 1) ? "League" : `Division ${i+1}`;
+                const box = document.createElement('div');
+                box.className = "bg-slate-50 border p-4 rounded-xl";
+                box.innerHTML = `<label class="block text-xs font-bold uppercase text-slate-400 mb-1">Division ${i+1} Name</label><input type="text" id="divName_${i}" value="${defaultName}" class="w-full mb-3 p-2 border rounded font-bold text-slate-700 outline-none"><label class="block text-xs font-bold uppercase text-slate-400 mb-1">Teams (One per line)</label><textarea id="divTeams_${i}" class="w-full h-32 p-2 border rounded text-xs font-mono outline-none" placeholder="Team A\nTeam B..."></textarea>`;
+                container.appendChild(box);
+            }
+            changeStep(3);
+        };
+
+        // --- 3. THE "TETRIS" SCHEDULER ---
+        window.generatePreview = () => {
+            pendingMatches = [];
+            const slotDur = parseInt(document.getElementById('gameDur').value) + parseInt(document.getElementById('breakDur').value);
+            const pitchCount = parseInt(document.getElementById('pitchCount').value);
+            const flow = document.getElementById('scheduleFlow').value;
+            const divCount = config.param || 1;
+            let matchPools = [];
+            
+            // Track team availability by UNIQUE ID
+            let teamAvail = {}; 
+            const getTeamId = (div, name) => `${div}::${name}`;
+
+            // A. Create Matches
+            for(let i=0; i<divCount; i++) {
+                const divName = document.getElementById(`divName_${i}`).value;
+                const rawTeams = document.getElementById(`divTeams_${i}`).value.split(/[\r\n,]+/).map(t=>t.trim()).filter(t=>t);
+                
+                if(rawTeams.length > 1) {
+                    rawTeams.forEach(t => {
+                        teamAvail[getTeamId(divName, t)] = 0; 
+                    });
+
+                    let pool = [];
+                    if (['league', 'groups_final', 'world_cup', 'waterfall'].includes(config.type)) {
+                        for(let a=0; a<rawTeams.length; a++) 
+                            for(let b=a+1; b<rawTeams.length; b++) 
+                                pool.push({ teamA:rawTeams[a], teamB:rawTeams[b], division:divName, type:'group', idA: getTeamId(divName, rawTeams[a]), idB: getTeamId(divName, rawTeams[b]) });
+                    } else {
+                        for(let a=0; a<rawTeams.length; a+=2) 
+                            pool.push({ teamA:rawTeams[a], teamB:rawTeams[a+1]||"BYE", division:divName, type:'ko', idA: getTeamId(divName, rawTeams[a]), idB: getTeamId(divName, rawTeams[a+1]||"BYE") });
+                    }
+                    matchPools.push(pool);
+                }
+            }
+
+            if(matchPools.length === 0) return alert("Please enter at least 2 teams.");
+
+            // B. Initialize Clocks
+            let pitchAvail = Array(pitchCount).fill(0); 
+            const START = 9 * 60; // 09:00
+            const toTime = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+            
+            // Queue Management
+            let matchQueue = [];
+            if(flow === 'block') {
+                // Sequential: Pool 1, then Pool 2
+                matchPools.forEach(pool => matchQueue.push(...pool));
+            } else {
+                // Interwoven: Zipper merge
+                let max = Math.max(...matchPools.map(p => p.length));
+                for(let i=0; i<max; i++) matchPools.forEach(p => { if(p[i]) matchQueue.push(p[i]); });
+            }
+
+            if(config.type === 'groups_final') {
+                // Placeholder finals
+                matchQueue.push({teamA:"Winner A", teamB:"Winner B", division:"Final", type:'final', idA: "Final_A", idB: "Final_B"});
+                teamAvail["Final_A"] = 0; teamAvail["Final_B"] = 0;
+            }
+
+            // C. Assign Slots
+            while(matchQueue.length > 0) {
+                // 1. Find Pitch with Earliest Hole
+                let bestPitch = 0;
+                for(let p=1; p<pitchCount; p++) {
+                    if(pitchAvail[p] < pitchAvail[bestPitch]) bestPitch = p;
+                }
+                let slotTime = pitchAvail[bestPitch];
+
+                // 2. Find compatible match
+                let bestMatchIdx = -1;
+                for(let i=0; i<matchQueue.length; i++) {
+                    const m = matchQueue[i];
+                    const tA = teamAvail[m.idA] || 0;
+                    const tB = teamAvail[m.idB] || 0;
+                    if (tA <= slotTime && tB <= slotTime) { bestMatchIdx = i; break; }
+                }
+
+                // 3. If no perfect fit, advance time
+                if (bestMatchIdx === -1) {
+                    let earliestPossible = Infinity;
+                    for(let i=0; i<matchQueue.length; i++) {
+                        const m = matchQueue[i];
+                        const ready = Math.max(teamAvail[m.idA]||0, teamAvail[m.idB]||0);
+                        if(ready < earliestPossible) { earliestPossible = ready; bestMatchIdx = i; }
+                    }
+                    slotTime = earliestPossible;
+                }
+
+                // 4. Commit
+                const m = matchQueue.splice(bestMatchIdx, 1)[0];
+                m.field = bestPitch + 1;
+                m.timeSlot = toTime(START + slotTime);
+                m.scoreA = 0; m.scoreB = 0; m.status = 'scheduled';
+                
+                const finish = slotTime + slotDur;
+                pitchAvail[bestPitch] = finish;
+                teamAvail[m.idA] = finish;
+                teamAvail[m.idB] = finish;
+                
+                pendingMatches.push(m);
+            }
+
+            // D. Render Preview
+            pendingMatches.sort((a,b) => (a.timeSlot+a.field).localeCompare(b.timeSlot+b.field));
+            const tbody = document.getElementById('previewBody');
+            tbody.innerHTML = '';
+            pendingMatches.forEach(m => {
+                tbody.innerHTML += `<tr class="hover:bg-slate-100"><td class="p-2 border-b font-mono text-xs">${m.timeSlot}</td><td class="p-2 border-b text-xs font-bold">P${m.field}</td><td class="p-2 border-b text-xs">${m.teamA} vs ${m.teamB} <span class="text-slate-400">(${m.division})</span></td></tr>`;
+            });
+            document.getElementById('previewCount').innerText = `${pendingMatches.length} Matches`;
+            document.getElementById('previewContainer').classList.remove('hidden');
+            document.getElementById('previewBtn').classList.add('hidden');
+        };
+
+        // --- 4. UPLOAD ---
+        window.confirmUpload = async () => {
+            const btn = document.getElementById('uploadBtn');
+            btn.disabled = true;
+
+            try {
+                const scheduleRef = ref(db, `tournaments/${eventId}/schedule`);
+                btn.innerText = "Cleaning database...";
+                await set(scheduleRef, null);
+
+                const total = pendingMatches.length;
+                for (let i = 0; i < total; i++) {
+                    btn.innerText = `Uploading Match ${i + 1} of ${total}...`;
+                    const m = pendingMatches[i];
+                    // Clean temp IDs
+                    const cleanMatch = {
+                        teamA: m.teamA, teamB: m.teamB, division: m.division,
+                        field: m.field, timeSlot: m.timeSlot, 
+                        scoreA: 0, scoreB: 0, status: 'scheduled'
+                    };
+                    await push(scheduleRef, cleanMatch);
+                }
+
+                btn.innerText = "Finalizing...";
+                await set(ref(db, `tournaments/${eventId}/match`), { teamA:"--", teamB:"--", scoreA:0, scoreB:0, isRunning:false });
+
+                btn.innerText = "Done! Redirecting...";
+                window.location.href = `manage.html?event=${eventId}`;
+
+            } catch (err) {
+                alert("Upload Stopped: " + err.message);
+                btn.disabled = false;
+                btn.innerText = "Retry Upload";
+            }
+        };
+    </script>
+</body>
+</html>
