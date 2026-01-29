@@ -3,153 +3,212 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Setup Wizard</title>
+    <title>Tournament Setup</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        :root { --primary: #007bff; --bg: #f8f9fa; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); padding: 20px; color: #333; }
-        .wizard-container { max-width: 600px; margin: 40px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        .step { display: none; } .step.active { display: block; }
-        input, select { width: 100%; padding: 12px; margin-top: 5px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
-        button { padding: 12px; border: none; border-radius: 8px; cursor: pointer; }
-        .sport-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .sport-card { padding: 15px; border: 2px solid #eee; border-radius: 8px; text-align: center; cursor: pointer; }
-        .sport-card.selected { border-color: var(--primary); background: #e7f1ff; font-weight: bold; }
+        .step { display: none; }
+        .step.active { display: block; animation: fadein 0.3s; }
+        @keyframes fadein { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
     </style>
 </head>
-<body>
-<div class="wizard-container">
-    <div id="step1" class="step active">
-        <h1>Sport Selection</h1>
-        <p style="color:#666; font-size:0.9rem; margin-bottom:15px">Select a sport to apply rules:</p>
-        <div class="sport-grid">
-            <div class="sport-card" onclick="selectSport('lacrosse')">🥍 Lacrosse</div>
-            <div class="sport-card" onclick="selectSport('soccer')">⚽ Soccer</div>
-            <div class="sport-card" onclick="selectSport('basketball')">🏀 Basketball</div>
-            <div class="sport-card" onclick="selectSport('rugby')">🏉 Rugby</div>
+<body class="bg-slate-50 min-h-screen p-6 font-sans text-slate-800">
+
+    <div class="max-w-2xl mx-auto bg-white shadow-xl rounded-2xl p-8 border border-slate-100">
+        
+        <div class="mb-8 border-b pb-4">
+            <h1 class="text-2xl font-black text-slate-800">Event Setup</h1>
+            <p class="text-slate-500 text-sm">Configure logistics and generate brackets.</p>
         </div>
-        <div id="sportError" style="color:red; font-size:0.8rem; margin-top:10px; display:none;">Please select a sport first.</div>
+
+        <div id="step1" class="step active">
+            <h2 class="font-bold text-lg mb-4 text-indigo-600">1. Time & Logistics</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Period Format</label>
+                    <select id="periodFormat" class="w-full p-3 bg-slate-50 border rounded font-bold">
+                        <option value="2">Halves (2 periods)</option>
+                        <option value="4">Quarters (4 periods)</option>
+                        <option value="3">Thirds (3 periods)</option>
+                        <option value="1">Single Period</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Mins per Period</label>
+                    <input type="number" id="periodDuration" value="20" class="w-full p-3 bg-slate-50 border rounded font-bold">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Total Slot Time (Mins)</label>
+                    <input type="number" id="slotDuration" value="60" class="w-full p-3 bg-slate-50 border rounded font-bold">
+                    <p class="text-[10px] text-slate-400 mt-1">Include playing time + halftime + changeover.</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-400 mb-1">First Game Starts</label>
+                    <input type="time" id="startTime" value="09:00" class="w-full p-3 bg-slate-50 border rounded font-bold">
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-xs font-bold uppercase text-slate-400 mb-1">Number of Pitches/Fields</label>
+                <input type="number" id="fieldCount" value="1" class="w-full p-3 bg-slate-50 border rounded font-bold">
+            </div>
+
+            <button onclick="changeStep(2)" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition">Next: Teams</button>
+        </div>
+
+        <div id="step2" class="step">
+            <h2 class="font-bold text-lg mb-4 text-indigo-600">2. Divisions & Teams</h2>
+            
+            <div class="bg-slate-50 p-4 rounded-xl border mb-4">
+                <input type="text" id="divName" placeholder="Division Name (e.g. U15 Boys)" class="w-full mb-2 p-2 border rounded text-sm">
+                <textarea id="teamList" placeholder="Enter Team Names (one per line, or comma separated)" class="w-full p-2 border rounded text-sm h-24"></textarea>
+                <button onclick="addDivision()" class="mt-2 w-full bg-slate-800 text-white text-xs font-bold py-2 rounded">Add Division</button>
+            </div>
+
+            <div id="divisionDisplay" class="space-y-2 mb-6 text-sm text-slate-600"></div>
+
+            <div class="flex gap-2">
+                <button onclick="changeStep(1)" class="flex-1 bg-slate-200 text-slate-600 font-bold py-3 rounded-xl">Back</button>
+                <button id="genBtn" onclick="generate()" class="flex-[2] bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-xl">Generate Schedule</button>
+            </div>
+        </div>
+
+        <div id="step3" class="step text-center py-10">
+            <div class="text-5xl mb-4">✅</div>
+            <h2 class="font-bold text-2xl mb-2">Tournament Ready!</h2>
+            <p class="text-slate-500 mb-8">Matches have been scheduled across your pitches.</p>
+            <a href="manage.html" id="manageLink" class="inline-block bg-indigo-600 text-white font-bold py-3 px-8 rounded-xl shadow-lg">Open Manager Dashboard</a>
+        </div>
+
     </div>
 
-    <div id="step2" class="step">
-        <h1>Settings</h1>
-        <label>Game Duration (mins)</label><input type="number" id="gameDuration">
-        <label>Break Time (mins)</label><input type="number" id="breakDuration">
-        <label>Fields</label><input type="number" id="fieldCount" value="1">
-        <button onclick="changeStep(1)" style="margin-top:10px">Back</button>
-        <button onclick="changeStep(3)" style="margin-top:10px; background:var(--primary); color:white">Next</button>
-    </div>
+    <script type="module">
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+        import { getDatabase, ref, set, push } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+        import { app, db } from './firebase-config.js';
 
-    <div id="step3" class="step">
-        <h1>Teams</h1>
-        <input type="text" id="divNameInput" placeholder="Division Name (e.g. Varsity)">
-        <input type="text" id="teamsInput" placeholder="Teams (e.g. Tigers, Lions, Bears)">
-        <button onclick="addDivision()" style="background:#28a745; color:white; width:100%; margin-top:10px">+ Add Division</button>
-        <div id="divisionList" style="margin:10px 0; font-size:0.9rem; color:#555;"></div>
-        <button id="genBtn" onclick="finishSetup()" style="background:var(--primary); color:white; width:100%; margin-top:20px">Generate Schedule</button>
-    </div>
+        const auth = getAuth(app);
+        const params = new URLSearchParams(window.location.search);
+        const eventId = params.get('event');
 
-    <div id="step4" class="step">
-        <h1 style="color:green">Success!</h1>
-        <p>Schedule generated successfully.</p>
-        <a href="manage.html" id="manageLink" style="display:block; margin-top:20px; text-decoration:underline; font-weight:bold;">Go to Event Manager</a>
-    </div>
-</div>
+        if(eventId) document.getElementById('manageLink').href = `manage.html?event=${eventId}`;
 
-<script type="module">
-    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-    import { getDatabase, ref, set, push } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
-    import { app, db } from './firebase-config.js';
-
-    const auth = getAuth(app);
-    const params = new URLSearchParams(window.location.search);
-    const eventId = params.get('event');
-
-    // Link fix for step 4
-    if(eventId) document.getElementById('manageLink').href = `manage.html?event=${eventId}`;
-
-    onAuthStateChanged(auth, (user) => {
-        if (!user) { alert("Please log in via Director Portal"); window.location.href = "director.html"; }
-    });
-
-    if(!eventId) { alert("No Event ID"); window.location.href = "director.html"; }
-
-    let tournamentData = { sport: '', settings: {}, divisions: [] };
-    const presets = { lacrosse: {d:60,b:10}, soccer: {d:90,b:15}, basketball: {d:40,b:10}, rugby: {d:14,b:2} };
-
-    window.selectSport = (s) => {
-        tournamentData.sport = s;
-        document.querySelectorAll('.sport-card').forEach(e=>e.classList.remove('selected'));
-        event.target.classList.add('selected');
-        document.getElementById('sportError').style.display = 'none';
-        
-        document.getElementById('gameDuration').value = presets[s].d;
-        document.getElementById('breakDuration').value = presets[s].b;
-        setTimeout(()=>changeStep(2), 200);
-    };
-
-    window.changeStep = (n) => {
-        // Validation for Step 1
-        if(n === 2 && !tournamentData.sport) {
-            document.getElementById('sportError').style.display = 'block';
-            return;
-        }
-        document.querySelectorAll('.step').forEach(e=>e.classList.remove('active'));
-        document.getElementById(`step${n}`).classList.add('active');
-    };
-
-    window.addDivision = () => {
-        const name = document.getElementById('divNameInput').value;
-        const teams = document.getElementById('teamsInput').value.split(',').map(t=>t.trim()).filter(t=>t);
-        
-        if(!name || teams.length < 2) return alert("Need a division name and at least 2 teams!");
-        
-        tournamentData.divisions.push({name, teams});
-        document.getElementById('divisionList').innerHTML += `<div><b>${name}</b>: ${teams.length} teams</div>`;
-        document.getElementById('divNameInput').value = '';
-        document.getElementById('teamsInput').value = '';
-    };
-
-    window.finishSetup = () => {
-        if(tournamentData.divisions.length === 0) return alert("Add at least one division!");
-
-        const btn = document.getElementById('genBtn');
-        btn.innerText = "Generating...";
-        btn.disabled = true;
-
-        const scheduleRef = ref(db, `tournaments/${eventId}/schedule`);
-        const matchRef = ref(db, `tournaments/${eventId}/match`);
-        const fields = parseInt(document.getElementById('fieldCount').value);
-        let idCounter = 1;
-        const promises = [];
-
-        tournamentData.divisions.forEach(div => {
-            for(let i=0; i<div.teams.length; i++) {
-                for(let j=i+1; j<div.teams.length; j++) {
-                    const p = push(scheduleRef, {
-                        id: idCounter,
-                        teamA: div.teams[i],
-                        teamB: div.teams[j],
-                        division: div.name,
-                        status: 'scheduled',
-                        scoreA: 0, scoreB: 0,
-                        timeRemaining: document.getElementById('gameDuration').value * 60,
-                        sport: tournamentData.sport,
-                        field: (idCounter % fields) + 1,
-                        timeSlot: "10:00"
-                    });
-                    promises.push(p);
-                    idCounter++;
-                }
-            }
+        // Validation
+        onAuthStateChanged(auth, user => {
+            if (!user) window.location.href = "director.html";
         });
+        if(!eventId) window.location.href = "director.html";
 
-        // Init Live Match
-        promises.push(set(matchRef, { teamA:"TBD", teamB:"TBD", scoreA:0, scoreB:0, time:0, isRunning:false, sport:tournamentData.sport }));
+        // State
+        const divisions = [];
 
-        Promise.all(promises)
-            .then(() => changeStep(4))
-            .catch((e) => { alert("Error: " + e.code); btn.disabled = false; });
-    };
-</script>
+        window.changeStep = (n) => {
+            document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+            document.getElementById(`step${n}`).classList.add('active');
+        };
+
+        window.addDivision = () => {
+            const name = document.getElementById('divName').value;
+            let teams = document.getElementById('teamList').value;
+            
+            // Handle both commas and newlines
+            if(teams.includes(',')) teams = teams.split(',');
+            else teams = teams.split('\n');
+
+            teams = teams.map(t => t.trim()).filter(t => t); // Clean empty strings
+
+            if(!name || teams.length < 2) return alert("Need name and at least 2 teams.");
+
+            divisions.push({ name, teams });
+            
+            // Visual feedback
+            const div = document.createElement('div');
+            div.className = "bg-white p-3 border rounded shadow-sm flex justify-between";
+            div.innerHTML = `<span><strong>${name}</strong></span> <span class="bg-slate-100 px-2 rounded text-xs py-1">${teams.length} Teams</span>`;
+            document.getElementById('divisionDisplay').appendChild(div);
+
+            document.getElementById('divName').value = '';
+            document.getElementById('teamList').value = '';
+        };
+
+        // --- THE LOGISTICS GENERATOR ---
+        window.generate = async () => {
+            if(divisions.length === 0) return alert("Add a division first!");
+
+            const btn = document.getElementById('genBtn');
+            btn.innerText = "Processing...";
+            btn.disabled = true;
+
+            // 1. Gather Settings
+            const periodFormat = document.getElementById('periodFormat').value;
+            const periodDur = document.getElementById('periodDuration').value;
+            const slotDur = parseInt(document.getElementById('slotDuration').value);
+            const pitchCount = parseInt(document.getElementById('fieldCount').value);
+            let timeStr = document.getElementById('startTime').value;
+
+            // Save Settings to DB
+            await set(ref(db, `tournaments/${eventId}/settings`), {
+                periodFormat, periodDur, slotDur, pitchCount
+            });
+
+            // 2. Generate Matchups (Round Robin)
+            let matches = [];
+            divisions.forEach(div => {
+                for(let i=0; i<div.teams.length; i++) {
+                    for(let j=i+1; j<div.teams.length; j++) {
+                        matches.push({
+                            teamA: div.teams[i],
+                            teamB: div.teams[j],
+                            division: div.name,
+                            scoreA: 0, scoreB: 0,
+                            status: 'scheduled'
+                        });
+                    }
+                }
+            });
+
+            // 3. Assign Time & Pitches
+            // Helper to add minutes to HH:MM
+            const addMins = (time, mins) => {
+                let [h, m] = time.split(':').map(Number);
+                m += mins;
+                h += Math.floor(m / 60);
+                m = m % 60;
+                return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+            };
+
+            let currentPitch = 1;
+            let currentTime = timeStr;
+
+            const scheduleRef = ref(db, `tournaments/${eventId}/schedule`);
+            await set(scheduleRef, null); // Clear old schedule
+
+            const promises = matches.map((match, index) => {
+                // Assign Slot
+                match.timeSlot = currentTime;
+                match.field = currentPitch;
+                match.timeRemaining = parseInt(periodDur) * parseInt(periodFormat) * 60; // Total seconds
+
+                // Increment Pitch/Time logic
+                currentPitch++;
+                if(currentPitch > pitchCount) {
+                    currentPitch = 1; // Reset pitch
+                    currentTime = addMins(currentTime, slotDur); // Move time forward
+                }
+
+                return push(scheduleRef, match);
+            });
+
+            // Init Live Match Node
+            await set(ref(db, `tournaments/${eventId}/match`), {
+                teamA: "TBD", teamB: "TBD", scoreA: 0, scoreB: 0, isRunning: false, time: 0
+            });
+
+            Promise.all(promises).then(() => changeStep(3));
+        };
+    </script>
 </body>
 </html>
