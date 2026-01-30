@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Database Technician</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-green-400 font-mono p-8 min-h-screen">
+
+    <div class="max-w-2xl mx-auto border border-green-800 p-6 rounded bg-black shadow-2xl">
+        <h1 class="text-xl font-bold mb-4 uppercase tracking-widest border-b border-green-900 pb-2">
+            🔧 Database Diagnostics & Repair
+        </h1>
+
+        <div class="mb-6">
+            <div class="text-xs text-green-600 mb-1">CONNECTION STATUS</div>
+            <div id="authStatus" class="font-bold text-lg animate-pulse">Checking Permissions...</div>
+            <div class="text-xs text-slate-500 mt-1">Event ID: <span id="eventIdDisplay" class="text-white">...</span></div>
+        </div>
+
+        <div class="mb-6">
+            <div class="text-xs text-green-600 mb-1">CURRENT DATABASE CONTENT</div>
+            <div id="dbOutput" class="h-40 overflow-auto border border-green-900 p-2 text-xs bg-slate-900 text-slate-300">
+                Reading...
+            </div>
+            <div id="countDisplay" class="text-right text-xs font-bold mt-1 text-green-500">...</div>
+        </div>
+
+        <div class="border-t border-green-900 pt-6">
+            <p class="text-sm mb-4 text-white">
+                If the database is broken or empty, click this button. 
+                It effectively "Factory Resets" the schedule to 3 valid matches.
+            </p>
+            <button onclick="forceRepair()" class="w-full bg-green-700 hover:bg-green-600 text-white font-bold py-4 rounded shadow-lg text-lg transition">
+                ⚡ FORCE WRITE 3 MATCHES
+            </button>
+        </div>
+
+    </div>
+
+    <script type="module">
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+        import { app, db } from './firebase-config.js';
+
+        const params = new URLSearchParams(window.location.search);
+        let eventId = params.get('event');
+        
+        // Default to 'test' if missing, so we don't crash
+        if(!eventId) {
+            eventId = prompt("Enter Event ID:", "test-event");
+            window.history.replaceState(null, null, `?event=${eventId}`);
+        }
+        document.getElementById('eventIdDisplay').innerText = eventId;
+
+        const auth = getAuth(app);
+        
+        // 1. AUTH CHECK
+        onAuthStateChanged(auth, (user) => {
+            const status = document.getElementById('authStatus');
+            if (user) {
+                status.innerText = "ONLINE (Logged In)";
+                status.classList.remove('animate-pulse');
+                startListening();
+            } else {
+                status.innerText = "OFFLINE (Redirecting...)";
+                status.classList.add('text-red-500');
+                setTimeout(() => window.location.href = "director.html", 1500);
+            }
+        });
+
+        // 2. LISTEN TO DB
+        function startListening() {
+            onValue(ref(db, `tournaments/${eventId}/schedule`), (snap) => {
+                const output = document.getElementById('dbOutput');
+                const count = document.getElementById('countDisplay');
+                
+                if(!snap.exists()) {
+                    output.innerText = "DATABASE IS EMPTY (null)";
+                    count.innerText = "0 Items Found";
+                    return;
+                }
+
+                const data = snap.val();
+                const keys = Object.keys(data);
+                
+                // Pretty Print JSON
+                output.innerText = JSON.stringify(data, null, 2);
+                count.innerText = `${keys.length} Items Found in Database`;
+            });
+        }
+
+        // 3. FORCE REPAIR (Hardcoded Data)
+        window.forceRepair = () => {
+            if(!confirm("Are you sure? This will delete current data and write 3 fixed matches.")) return;
+
+            const hardcodedData = {
+                "match_001": {
+                    timeSlot: "09:00",
+                    field: 1,
+                    teamA: "Red Dragons",
+                    teamB: "Blue Knights",
+                    scoreA: 0, 
+                    scoreB: 0,
+                    status: "scheduled",
+                    division: "Group A"
+                },
+                "match_002": {
+                    timeSlot: "09:30",
+                    field: 2,
+                    teamA: "Green Giants",
+                    teamB: "Yellow Stars",
+                    scoreA: 0, 
+                    scoreB: 0,
+                    status: "scheduled",
+                    division: "Group A"
+                },
+                "match_003": {
+                    timeSlot: "10:00",
+                    field: 1,
+                    teamA: "Purple Pumas",
+                    teamB: "Orange Owls",
+                    scoreA: 0, 
+                    scoreB: 0,
+                    status: "scheduled",
+                    division: "Group B"
+                }
+            };
+
+            set(ref(db, `tournaments/${eventId}/schedule`), hardcodedData)
+                .then(() => alert("✅ Database Repaired Successfully."))
+                .catch((e) => alert("❌ Error: " + e.message));
+        };
+    </script>
+</body>
+</html>
