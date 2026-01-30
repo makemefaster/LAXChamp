@@ -3,22 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manager (Phase 4)</title>
+    <title>Manager (Phase 5)</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .saved-flash { animation: flash 1s ease-out; }
+        @keyframes flash { 0% { background-color: #bbf7d0; } 100% { background-color: white; } }
+    </style>
 </head>
 <body class="bg-slate-100 min-h-screen p-4 font-sans text-slate-800">
 
-    <div class="bg-indigo-900 text-white p-4 rounded-xl mb-6 flex justify-between items-center shadow-lg sticky top-0 z-10">
+    <div class="bg-indigo-900 text-white p-4 rounded-xl mb-4 flex justify-between items-center shadow-lg sticky top-0 z-20">
         <div>
-            <h1 class="font-bold text-lg">Phase 4: Sanitized</h1>
-            <p class="text-xs text-indigo-300">Strict Data Formatting</p>
+            <h1 class="font-bold text-lg">Director Mode</h1>
+            <p class="text-xs text-indigo-300">Stable Editing (No Jumping)</p>
         </div>
         <div id="statusTag" class="text-xs bg-indigo-800 px-3 py-1 rounded-full font-bold">Connecting...</div>
     </div>
 
-    <div id="debugLog" class="text-xs font-mono text-slate-400 mb-4"></div>
+    <div id="updateLog" class="fixed top-20 right-4 z-50 pointer-events-none"></div>
 
-    <div id="matchList" class="space-y-3 max-w-xl mx-auto"></div>
+    <div id="matchList" class="space-y-3 max-w-xl mx-auto pb-20"></div>
+
+    <button onclick="addMatch()" class="fixed bottom-6 right-6 bg-indigo-600 text-white w-14 h-14 rounded-full shadow-2xl text-3xl flex items-center justify-center hover:bg-indigo-500 z-50 active:scale-95 transition">+</button>
 
     <script type="module">
         import { getAuth } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
@@ -29,86 +35,103 @@
         const eventId = params.get('event');
         if(!eventId) document.body.innerHTML = "No Event ID";
 
-        const debug = document.getElementById('debugLog');
-        const log = (msg) => debug.innerHTML += `<div>${msg}</div>`;
+        const showToast = (msg) => {
+            const log = document.getElementById('updateLog');
+            const el = document.createElement('div');
+            el.className = "bg-green-600 text-white text-xs font-bold px-3 py-2 rounded shadow-lg mb-2";
+            el.innerText = msg;
+            log.appendChild(el);
+            setTimeout(() => el.remove(), 2000);
+        };
 
+        // 1. LISTEN
         onValue(ref(db, `tournaments/${eventId}/schedule`), (snap) => {
             const list = document.getElementById('matchList');
             const status = document.getElementById('statusTag');
             
-            list.innerHTML = '';
-            debug.innerHTML = '';
+            // Only clear list if it's the FIRST load to prevent jitter
+            // But for simplicity in this phase, we rebuild but WITHOUT sorting.
+            list.innerHTML = ''; 
 
             if(!snap.exists()) {
                 status.innerText = "0 Matches";
-                list.innerHTML = "No data.";
+                list.innerHTML = `<div class="text-center text-slate-400 mt-10">No matches found.</div>`;
                 return;
             }
 
-            // 1. EXTRACT DATA (Using Safe Mode Method)
-            const rawData = snap.val();
-            const matches = Object.keys(rawData).map(key => ({ key: key, ...rawData[key] }));
+            // 2. LOAD DATA
+            const matches = [];
+            snap.forEach(c => matches.push({key: c.key, ...c.val()}));
+            status.innerText = `${matches.length} Matches`;
+
+            // 3. RENDER (NO SORTING!)
+            // We just render them in the order they were created (Key order).
+            // This prevents the UI from jumping when you change a time.
             
-            status.innerText = `${matches.length} Matches Found`;
-            log(`Loaded ${matches.length} matches from DB.`);
-
-            // 2. SORT (Simple)
-            matches.sort((a,b) => (a.timeSlot || "").localeCompare(b.timeSlot || ""));
-
-            // 3. RENDER
             matches.forEach((m, i) => {
-                try {
-                    // SANITIZE TIME: Must be HH:MM (5 chars) to avoid input crash
-                    let cleanTime = m.timeSlot || "";
-                    if (cleanTime.length === 4) cleanTime = "0" + cleanTime; // Fix "9:00" -> "09:00"
-                    if (!cleanTime.includes(":")) cleanTime = ""; // Clear bad data
+                // Time Sanitization
+                let cleanTime = m.timeSlot || "";
+                if (cleanTime.length === 4) cleanTime = "0" + cleanTime;
 
-                    const card = document.createElement('div');
-                    card.className = `bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-3`;
-                    
-                    card.innerHTML = `
-                        <div class="flex justify-between items-center mb-4 border-b border-slate-50 pb-2">
-                            <div class="flex gap-2 items-center">
-                                <span class="text-xs text-slate-400 font-mono">#${i+1}</span>
-                                <input type="time" value="${cleanTime}" onchange="edit('${m.key}', 'timeSlot', this.value)" 
-                                    class="bg-slate-100 font-bold text-sm px-2 py-1 rounded w-28 outline-none focus:ring-2 ring-indigo-500">
-                                
-                                <span class="bg-slate-100 text-xs font-bold px-2 py-1 rounded">
-                                    P <input type="number" value="${m.field || 1}" onchange="edit('${m.key}', 'field', Number(this.value))" 
-                                    class="bg-transparent w-4 text-center outline-none">
-                                </span>
-                            </div>
-                            <div class="flex gap-1">
-                                <button onclick="goLive('${m.key}')" class="bg-indigo-50 text-indigo-600 px-3 py-1 rounded text-[10px] font-bold">LIVE</button>
-                                <button onclick="del('${m.key}')" class="text-slate-300 hover:text-red-500 px-2">×</button>
-                            </div>
-                        </div>
-
-                        <div class="flex justify-between items-center font-bold text-slate-700 text-lg">
-                            <input type="text" value="${m.teamA}" onchange="edit('${m.key}', 'teamA', this.value)" class="w-1/3 bg-transparent outline-none focus:bg-slate-50">
+                const card = document.createElement('div');
+                card.id = `card-${m.key}`;
+                card.className = `bg-white p-4 rounded-xl shadow-sm border border-slate-200 relative`;
+                if(m.status === 'live') card.className += " border-green-500 ring-2 ring-green-100";
+                
+                card.innerHTML = `
+                    <div class="flex justify-between items-center mb-4 border-b border-slate-50 pb-2">
+                        <div class="flex gap-2 items-center">
+                            <input type="time" value="${cleanTime}" onchange="edit('${m.key}', 'timeSlot', this.value)" 
+                                class="bg-slate-100 font-bold text-sm px-2 py-1 rounded w-28 outline-none focus:ring-2 ring-indigo-500 cursor-pointer">
                             
-                            <div class="flex gap-1">
-                                <input type="number" value="${m.scoreA}" onchange="edit('${m.key}','scoreA',Number(this.value))" class="w-8 text-center bg-slate-100 rounded text-sm py-1">
-                                <span class="text-slate-300">-</span>
-                                <input type="number" value="${m.scoreB}" onchange="edit('${m.key}','scoreB',Number(this.value))" class="w-8 text-center bg-slate-100 rounded text-sm py-1">
+                            <div class="flex items-center bg-slate-100 px-2 py-1 rounded">
+                                <span class="text-[10px] font-bold text-slate-400 mr-1">P</span>
+                                <input type="number" value="${m.field || 1}" onchange="edit('${m.key}', 'field', Number(this.value))" 
+                                class="bg-transparent w-4 text-center text-sm font-bold outline-none">
                             </div>
-
-                            <input type="text" value="${m.teamB}" onchange="edit('${m.key}', 'teamB', this.value)" class="w-1/3 text-right bg-transparent outline-none focus:bg-slate-50">
                         </div>
-                    `;
-                    list.appendChild(card);
-                    log(`Rendered match ${i+1}`);
+                        <div class="flex gap-1">
+                            ${m.status === 'live' 
+                                ? `<button onclick="stopGame('${m.key}')" class="bg-green-100 text-green-700 px-3 py-1 rounded text-[10px] font-bold animate-pulse">ON AIR</button>`
+                                : `<button onclick="goLive('${m.key}')" class="bg-indigo-50 text-indigo-600 px-3 py-1 rounded text-[10px] font-bold border border-indigo-100">GO LIVE</button>`
+                            }
+                            <button onclick="del('${m.key}')" class="text-slate-300 hover:text-red-500 px-2 text-lg">×</button>
+                        </div>
+                    </div>
 
-                } catch (err) {
-                    log(`ERROR rendering match ${i}: ${err.message}`);
-                }
+                    <div class="flex justify-between items-center font-bold text-slate-700 text-lg">
+                        <input type="text" value="${m.teamA}" onchange="edit('${m.key}', 'teamA', this.value)" 
+                            class="w-1/3 bg-transparent outline-none border-b border-transparent focus:border-indigo-500 placeholder-slate-300" placeholder="Team A">
+                        
+                        <div class="flex gap-1 items-center">
+                            <input type="number" value="${m.scoreA}" onchange="edit('${m.key}','scoreA',Number(this.value))" 
+                                class="w-10 text-center bg-slate-50 rounded text-sm py-1 outline-none focus:ring-1 ring-indigo-500">
+                            <span class="text-slate-300 text-xs">-</span>
+                            <input type="number" value="${m.scoreB}" onchange="edit('${m.key}','scoreB',Number(this.value))" 
+                                class="w-10 text-center bg-slate-50 rounded text-sm py-1 outline-none focus:ring-1 ring-indigo-500">
+                        </div>
+
+                        <input type="text" value="${m.teamB}" onchange="edit('${m.key}', 'teamB', this.value)" 
+                            class="w-1/3 text-right bg-transparent outline-none border-b border-transparent focus:border-indigo-500 placeholder-slate-300" placeholder="Team B">
+                    </div>
+                `;
+                list.appendChild(card);
             });
         });
 
         // ACTIONS
-        window.edit = (key, field, val) => update(ref(db, `tournaments/${eventId}/schedule/${key}`), { [field]: val });
-        window.del = (key) => { if(confirm("Delete?")) set(ref(db, `tournaments/${eventId}/schedule/${key}`), null); };
+        window.edit = (key, field, val) => {
+            update(ref(db, `tournaments/${eventId}/schedule/${key}`), { [field]: val })
+                .then(() => showToast("Saved!"))
+                .catch(e => alert(e.message));
+        };
+
+        window.del = (key) => { if(confirm("Delete this match?")) set(ref(db, `tournaments/${eventId}/schedule/${key}`), null); };
         
+        window.addMatch = () => push(ref(db, `tournaments/${eventId}/schedule`), { 
+            timeSlot: "09:00", field: 1, teamA: "Team A", teamB: "Team B", scoreA: 0, scoreB: 0 
+        });
+
         window.goLive = async (key) => {
             const snap = await get(ref(db, `tournaments/${eventId}/schedule/${key}`));
             const m = snap.val();
@@ -118,6 +141,13 @@
             });
             update(ref(db, `tournaments/${eventId}/schedule/${key}`), { status: 'live' });
         };
+
+        window.stopGame = (key) => {
+            if(confirm("Stop Broadcasting?")) {
+                update(ref(db, `tournaments/${eventId}/schedule/${key}`), { status: 'finished' });
+                update(ref(db, `tournaments/${eventId}/match`), { isRunning: false });
+            }
+        }
     </script>
 </body>
 </html>
