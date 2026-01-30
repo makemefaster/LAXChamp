@@ -3,145 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tournament Manager</title>
+    <title>Manager (Debug Phase 1)</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-100 min-h-screen pb-24 font-sans text-slate-900">
+<body class="bg-slate-100 min-h-screen p-4 font-mono text-sm">
 
-    <div class="bg-indigo-900 text-white p-4 sticky top-0 z-50 flex justify-between items-center shadow-lg">
-        <h1 class="font-bold text-lg">Director Mode</h1>
-        <div id="statusTag" class="text-xs bg-indigo-800 px-3 py-1 rounded-full">Connecting...</div>
+    <div class="bg-slate-900 text-white p-4 rounded-xl mb-4 flex justify-between items-center shadow-lg">
+        <div>
+            <h1 class="font-bold text-lg">Phase 1: Skeleton</h1>
+            <p class="text-xs text-slate-400">Raw Data View</p>
+        </div>
+        <div id="statusTag" class="bg-blue-600 px-3 py-1 rounded font-bold">Connecting...</div>
     </div>
 
-    <div class="max-w-xl mx-auto p-4 space-y-4">
-        
-        <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200">
-            <label class="text-[10px] font-bold text-slate-400 uppercase">📢 Public Announcement</label>
-            <div class="flex gap-2 mt-1">
-                <input type="text" id="alertMsg" placeholder="Message..." class="flex-1 bg-slate-50 border rounded px-3 py-1 text-sm outline-none">
-                <button onclick="sendAlert()" class="bg-indigo-600 text-white font-bold px-3 py-1 rounded text-xs">SEND</button>
-                <button onclick="clearAlert()" class="bg-slate-200 text-slate-600 font-bold px-3 py-1 rounded text-xs">CLR</button>
-            </div>
+    <div id="errorLog" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4"></div>
+
+    <div id="matchList" class="space-y-2">
         </div>
-
-        <div id="matchList" class="space-y-3">
-            <div class="text-center py-10 text-slate-400 animate-pulse">Scanning database...</div>
-        </div>
-
-        <div class="mt-8 pt-8 border-t border-slate-300">
-            <button onclick="nukeSchedule()" class="w-full bg-red-100 text-red-600 font-bold py-3 rounded-xl border border-red-200 hover:bg-red-200 transition">
-                ⚠️ NUKE SCHEDULE (Delete All)
-            </button>
-            <p class="text-center text-[10px] text-slate-400 mt-2">Use this if you see old/ghost matches.</p>
-        </div>
-
-    </div>
-
-    <button onclick="addMatch()" class="fixed bottom-6 right-6 bg-indigo-600 text-white w-14 h-14 rounded-full shadow-2xl text-3xl flex items-center justify-center hover:bg-indigo-500 z-50">+</button>
 
     <script type="module">
         import { getAuth } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-        import { getDatabase, ref, onValue, update, push, set, get } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+        import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
         import { app, db } from './firebase-config.js';
 
         const params = new URLSearchParams(window.location.search);
         const eventId = params.get('event');
-        if(!eventId) document.body.innerHTML = "<div class='p-10'>Missing Event ID</div>";
+        
+        if(!eventId) document.body.innerHTML = "<h1>ERROR: No Event ID</h1>";
 
-        // 1. LISTEN TO DATA
+        const logError = (msg) => {
+            const el = document.getElementById('errorLog');
+            el.innerText += msg + "\n";
+            el.classList.remove('hidden');
+        };
+
+        // 1. RAW LISTENER
         onValue(ref(db, `tournaments/${eventId}/schedule`), (snap) => {
             const list = document.getElementById('matchList');
             const status = document.getElementById('statusTag');
-            
+
             if(!snap.exists()) {
                 status.innerText = "0 Matches";
-                list.innerHTML = `<div class="text-center py-10 text-slate-400">Database is empty.<br><a href="admin.html?event=${eventId}" class="underline text-indigo-600">Go generate matches</a></div>`;
+                list.innerHTML = "<div class='p-4 text-center text-slate-400'>Database is Empty</div>";
                 return;
             }
 
+            // 2. SAFE CONVERSION
             const matches = [];
-            snap.forEach(c => matches.push({key: c.key, ...c.val()}));
-            status.innerText = `${matches.length} Matches Found`;
-
-            // Sort by Time
-            matches.sort((a,b) => (a.timeSlot || "00:00").localeCompare(b.timeSlot || "00:00"));
-
-            list.innerHTML = '';
-            matches.forEach(m => {
-                const isLive = m.status === 'live';
-                
-                const card = document.createElement('div');
-                card.className = `bg-white border rounded-xl p-4 shadow-sm relative ${isLive ? 'border-green-500 ring-2 ring-green-100' : 'border-slate-200'}`;
-                
-                // RAW DATA DISPLAY
-                card.innerHTML = `
-                    <div class="flex justify-between items-start mb-2">
-                        <div class="flex gap-2">
-                             <input type="time" value="${m.timeSlot}" onchange="edit('${m.key}','timeSlot',this.value)" class="bg-slate-100 text-xs font-bold px-2 py-1 rounded w-20">
-                             <span class="bg-slate-100 text-xs font-bold px-2 py-1 rounded uppercase">Pitch ${m.field}</span>
-                        </div>
-                        <div class="flex gap-2">
-                             ${isLive 
-                                ? `<span class="bg-green-100 text-green-700 px-2 py-1 rounded text-[10px] font-bold animate-pulse">LIVE</span>` 
-                                : `<button onclick="goLive('${m.key}')" class="bg-indigo-50 text-indigo-600 px-3 py-1 rounded text-[10px] font-bold border border-indigo-100">GO LIVE</button>`
-                             }
-                             <button onclick="del('${m.key}')" class="text-slate-300 hover:text-red-500 px-1">×</button>
-                        </div>
-                    </div>
-                    
-                    <div class="flex items-center justify-between gap-2">
-                        <input type="text" value="${m.teamA}" onchange="edit('${m.key}','teamA',this.value)" class="flex-1 font-bold text-slate-800 text-sm bg-transparent border-b border-transparent focus:border-indigo-500 outline-none">
-                        
-                        <div class="flex gap-1">
-                            <input type="number" value="${m.scoreA}" onchange="edit('${m.key}','scoreA',Number(this.value))" class="w-8 text-center bg-slate-50 border rounded text-xs font-bold py-1">
-                            <input type="number" value="${m.scoreB}" onchange="edit('${m.key}','scoreB',Number(this.value))" class="w-8 text-center bg-slate-50 border rounded text-xs font-bold py-1">
-                        </div>
-
-                        <input type="text" value="${m.teamB}" onchange="edit('${m.key}','teamB',this.value)" class="flex-1 font-bold text-slate-800 text-sm text-right bg-transparent border-b border-transparent focus:border-indigo-500 outline-none">
-                    </div>
-                `;
-                list.appendChild(card);
+            snap.forEach(child => {
+                matches.push({ key: child.key, ...child.val() });
             });
+
+            status.innerText = `${matches.length} Matches`;
+
+            // 3. RENDER (No Sorting, No Grouping)
+            list.innerHTML = '';
+            
+            matches.forEach((m, i) => {
+                try {
+                    const card = document.createElement('div');
+                    card.className = "bg-white p-3 rounded border border-slate-300 shadow-sm";
+                    
+                    // Sanitize values to prevent crashes if data is missing
+                    const time = m.timeSlot || "NO TIME";
+                    const pitch = m.field || "NO PITCH";
+                    const tA = m.teamA || "???";
+                    const tB = m.teamB || "???";
+
+                    card.innerHTML = `
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="font-bold text-blue-600">[${i+1}] ${time} @ P${pitch}</span>
+                            <span class="text-xs text-slate-400 font-mono">${m.key.substring(0,4)}...</span>
+                        </div>
+                        <div class="text-lg">
+                            ${tA} <span class="text-slate-300">vs</span> ${tB}
+                        </div>
+                    `;
+                    list.appendChild(card);
+                } catch (err) {
+                    logError(`Failed to render match index ${i}: ${err.message}`);
+                }
+            });
+
+        }, (err) => {
+            logError("Database Permission Error: " + err.message);
         });
-
-        // ACTIONS
-        window.edit = (key, field, val) => update(ref(db, `tournaments/${eventId}/schedule/${key}`), { [field]: val });
-        
-        window.del = (key) => { 
-            if(confirm("Delete this match?")) set(ref(db, `tournaments/${eventId}/schedule/${key}`), null); 
-        };
-
-        window.nukeSchedule = () => {
-            if(confirm("ARE YOU SURE?\nThis will delete EVERY match in the list.")) {
-                set(ref(db, `tournaments/${eventId}/schedule`), null);
-            }
-        };
-
-        window.addMatch = () => push(ref(db, `tournaments/${eventId}/schedule`), { 
-            timeSlot: "09:00", field: 1, teamA: "Team A", teamB: "Team B", scoreA: 0, scoreB: 0 
-        });
-
-        window.sendAlert = () => set(ref(db, `tournaments/${eventId}/alert`), { message: document.getElementById('alertMsg').value, type: 'info' });
-        window.clearAlert = () => set(ref(db, `tournaments/${eventId}/alert`), null);
-
-        // FIXED GO LIVE (Direct Read)
-        window.goLive = (key) => {
-            // Read once directly to ensure we have the data
-            onValue(ref(db, `tournaments/${eventId}/schedule/${key}`), (snap) => {
-                const m = snap.val();
-                if(!m) return;
-
-                // Send to Match Node
-                update(ref(db, `tournaments/${eventId}/match`), {
-                    teamA: m.teamA, teamB: m.teamB, scoreA: m.scoreA, scoreB: m.scoreB,
-                    time: 1200, isRunning: false, scheduleKey: key, division: m.division || '', isFinal: false
-                });
-
-                // Mark as Live
-                update(ref(db, `tournaments/${eventId}/schedule/${key}`), { status: 'live' });
-            }, { onlyOnce: true });
-        };
-
     </script>
 </body>
 </html>
