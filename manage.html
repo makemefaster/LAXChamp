@@ -3,167 +3,215 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Director Dashboard</title>
+    <title>Tournament Master</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Mobile Scroll Fix */
-        html, body { height: 100%; overflow-x: hidden; }
-        .scroll-container { height: calc(100vh - 80px); overflow-y: auto; -webkit-overflow-scrolling: touch; }
-        .spam-match { border: 2px dashed #fca5a5; background-color: #fef2f2; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .nav-btn.active { background-color: #4f46e5; color: white; }
     </style>
 </head>
-<body class="bg-slate-100 font-sans text-slate-800 fixed inset-0">
+<body class="bg-slate-100 min-h-screen font-sans text-slate-800 pb-20">
 
-    <div class="bg-indigo-900 text-white p-4 h-[80px] flex justify-between items-center shadow-lg z-20 relative">
-        <div>
-            <h1 class="font-bold text-lg leading-tight">Director Mode</h1>
-            <div id="countTag" class="text-[10px] text-indigo-300">Scanning...</div>
+    <div class="bg-slate-900 text-white p-4 sticky top-0 z-50 shadow-md">
+        <div class="flex justify-between items-center mb-2">
+            <h1 class="font-black text-xl">🏆 Tournament Master</h1>
+            <div id="connectionStatus" class="text-[10px] bg-slate-800 px-2 py-1 rounded text-green-400 font-mono">Connecting...</div>
         </div>
-        <button onclick="cleanSpam()" id="cleanBtn" class="hidden bg-red-500 hover:bg-red-400 text-white text-xs font-bold px-3 py-2 rounded shadow animate-pulse">
-            🗑️ Clear Test Data
-        </button>
+        <div class="text-xs text-slate-400 font-mono">Event ID: <span id="eventIdDisplay" class="text-white font-bold">---</span></div>
+        
+        <div class="flex bg-slate-800 p-1 rounded-lg mt-3">
+            <button onclick="switchTab('run')" id="tab-run" class="nav-btn active flex-1 py-2 rounded text-xs font-bold transition">📡 DIRECTOR (Run)</button>
+            <button onclick="switchTab('setup')" id="tab-setup" class="nav-btn flex-1 py-2 rounded text-xs font-bold transition text-slate-400 hover:text-white">⚙️ SETUP (Reset)</button>
+        </div>
     </div>
 
-    <div id="mainScroll" class="scroll-container p-4 pb-32 space-y-3">
+    <div id="view-run" class="tab-content active p-4 max-w-xl mx-auto">
+        <div id="matchList" class="space-y-3">
+            <div class="text-center py-10 text-slate-400 animate-pulse">Waiting for schedule...</div>
         </div>
+    </div>
 
-    <button onclick="addMatch()" class="fixed bottom-6 right-6 bg-indigo-600 text-white w-14 h-14 rounded-full shadow-2xl text-3xl flex items-center justify-center hover:bg-indigo-500 z-50 active:scale-95 transition">+</button>
+    <div id="view-setup" class="tab-content p-4 max-w-xl mx-auto">
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+            <h2 class="font-bold text-lg mb-4 text-indigo-900">⚠️ Factory Reset</h2>
+            <p class="text-xs text-slate-500 mb-4">This will DELETE the current schedule and create a new one.</p>
+            
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="text-[10px] font-bold uppercase text-slate-400">Teams</label>
+                    <textarea id="teamInput" class="w-full h-24 p-2 border rounded text-xs font-mono" placeholder="Team 1&#10;Team 2&#10;Team 3&#10;Team 4"></textarea>
+                </div>
+                <div class="space-y-2">
+                    <div>
+                        <label class="text-[10px] font-bold uppercase text-slate-400">Pitches</label>
+                        <input type="number" id="pitchCount" value="2" class="w-full p-2 border rounded text-sm font-bold">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold uppercase text-slate-400">Mins/Game</label>
+                        <input type="number" id="gameDur" value="20" class="w-full p-2 border rounded text-sm font-bold">
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="generateAndUpload()" class="w-full bg-red-50 text-red-600 border border-red-200 font-bold py-3 rounded-xl hover:bg-red-100 transition">
+                🚀 Generate & Overwrite Database
+            </button>
+            <div id="uploadStatus" class="text-center text-xs font-bold mt-2 h-4 text-slate-400"></div>
+        </div>
+    </div>
 
     <script type="module">
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-        import { getDatabase, ref, onValue, update, push, set, get } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+        import { getDatabase, ref, onValue, update, set, push, get } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
         import { app, db } from './firebase-config.js';
 
         const params = new URLSearchParams(window.location.search);
-        const eventId = params.get('event');
-        if(!eventId) document.getElementById('mainScroll').innerHTML = "<div class='p-10 text-center'>No Event ID</div>";
+        let eventId = params.get('event');
+        
+        // AUTO-FIX: If no event ID, make one up or ask
+        if(!eventId) {
+            eventId = prompt("Enter Event ID (e.g. 'Test1'):", "Test1");
+            if(eventId) window.location.search = `?event=${eventId}`;
+        }
+        
+        document.getElementById('eventIdDisplay').innerText = eventId;
 
-        // AUTH CHECK
+        // AUTH
         const auth = getAuth(app);
-        onAuthStateChanged(auth, u => { if(!u) window.location.href = "director.html"; });
+        onAuthStateChanged(auth, u => {
+            if(!u) window.location.href = "director.html"; 
+            else document.getElementById('connectionStatus').innerText = "Online • Logged In";
+        });
 
-        // 1. LISTEN TO DATA
+        // --- TAB 1: MANAGER LOGIC ---
         onValue(ref(db, `tournaments/${eventId}/schedule`), (snap) => {
-            const list = document.getElementById('mainScroll');
-            const countTag = document.getElementById('countTag');
-            const cleanBtn = document.getElementById('cleanBtn');
-            
-            list.innerHTML = ''; 
+            const list = document.getElementById('matchList');
+            list.innerHTML = '';
 
             if(!snap.exists()) {
-                countTag.innerText = "0 Matches";
-                list.innerHTML = `<div class="text-center text-slate-400 mt-20">No matches found.</div>`;
+                list.innerHTML = `<div class="text-center py-10">
+                    <div class="text-4xl mb-2">📭</div>
+                    <div class="text-slate-400 font-bold">No Schedule Found</div>
+                    <div class="text-xs text-slate-300 mt-2">Go to "SETUP" tab to create one.</div>
+                </div>`;
                 return;
             }
 
             const matches = [];
-            let spamCount = 0;
             snap.forEach(c => matches.push({key: c.key, ...c.val()}));
-
-            // SORT BY TIME
+            
+            // Sort Chronologically
             matches.sort((a,b) => (a.timeSlot || "00:00").localeCompare(b.timeSlot || "00:00"));
 
-            countTag.innerText = `${matches.length} Matches Found`;
+            document.getElementById('connectionStatus').innerText = `Online • ${matches.length} Matches`;
 
             matches.forEach((m, i) => {
-                const isSpam = m.teamA === "Team A" && m.teamB === "Team B";
-                if(isSpam) spamCount++;
-
-                // Sanitize Time
-                let cleanTime = m.timeSlot || "";
-                if (cleanTime.length === 4) cleanTime = "0" + cleanTime;
+                // Safety: Convert Nulls to Strings
+                const safeTime = m.timeSlot || "00:00";
+                const safeA = m.teamA || "???";
+                const safeB = m.teamB || "???";
 
                 const card = document.createElement('div');
-                card.className = `p-3 rounded-xl shadow-sm relative mb-3 ${isSpam ? 'spam-match' : 'bg-white border border-slate-200'}`;
-                if(m.status === 'live') card.className += " ring-2 ring-green-500 border-green-500";
+                card.className = `bg-white p-3 rounded-xl shadow-sm border border-slate-200 relative`;
+                if(m.status === 'live') card.className += " ring-2 ring-indigo-500 border-indigo-500";
 
                 card.innerHTML = `
-                    <div class="flex justify-between items-center mb-3 pb-2 border-b ${isSpam?'border-red-200':'border-slate-50'}">
+                    <div class="flex justify-between items-center mb-2 pb-2 border-b border-slate-50">
                         <div class="flex gap-2 items-center">
-                            <span class="text-[10px] text-slate-400 font-mono">#${i+1}</span>
-                            <input type="text" value="${cleanTime}" onchange="edit('${m.key}', 'timeSlot', this.value)" 
-                                class="bg-slate-100 font-bold text-sm px-2 py-1 rounded w-16 text-center outline-none focus:ring-2 ring-indigo-500">
-                            
-                            <div class="flex items-center bg-slate-100 px-2 py-1 rounded">
-                                <span class="text-[10px] font-bold text-slate-400 mr-1">P</span>
-                                <input type="number" value="${m.field || 1}" onchange="edit('${m.key}', 'field', Number(this.value))" 
-                                class="bg-transparent w-4 text-center text-sm font-bold outline-none">
-                            </div>
-                            ${isSpam ? '<span class="text-[10px] font-bold text-red-500 uppercase ml-2">TEST DATA</span>' : ''}
+                            <input type="text" value="${safeTime}" onchange="edit('${m.key}', 'timeSlot', this.value)" 
+                                class="bg-slate-100 font-bold text-sm px-2 py-1 rounded w-16 text-center outline-none">
+                            <span class="bg-slate-100 text-[10px] font-bold px-2 py-1 rounded text-slate-500">PITCH ${m.field}</span>
                         </div>
-                        
+                        ${m.status === 'live' 
+                            ? `<button class="bg-indigo-600 text-white px-3 py-1 rounded text-[10px] font-bold animate-pulse">ON AIR</button>`
+                            : `<button onclick="goLive('${m.key}')" class="bg-slate-100 text-slate-500 hover:text-indigo-600 px-3 py-1 rounded text-[10px] font-bold">GO LIVE</button>`
+                        }
+                    </div>
+                    <div class="flex justify-between items-center font-bold text-slate-700 text-sm">
+                        <span class="w-1/3 truncate">${safeA}</span>
                         <div class="flex gap-1">
-                             ${m.status === 'live' 
-                                ? `<button onclick="stopGame('${m.key}')" class="bg-green-100 text-green-700 px-2 py-1 rounded text-[10px] font-bold animate-pulse">ON AIR</button>`
-                                : `<button onclick="goLive('${m.key}')" class="bg-slate-100 text-slate-500 hover:text-indigo-600 px-2 py-1 rounded text-[10px] font-bold">LIVE</button>`
-                            }
+                            <input type="number" value="${m.scoreA||0}" onchange="edit('${m.key}','scoreA',Number(this.value))" class="w-8 text-center bg-slate-50 rounded py-1">
+                            <span class="text-slate-300">-</span>
+                            <input type="number" value="${m.scoreB||0}" onchange="edit('${m.key}','scoreB',Number(this.value))" class="w-8 text-center bg-slate-50 rounded py-1">
                         </div>
+                        <span class="w-1/3 truncate text-right">${safeB}</span>
                     </div>
-
-                    <div class="flex justify-between items-center font-bold text-slate-700">
-                        <input type="text" value="${m.teamA}" onchange="edit('${m.key}', 'teamA', this.value)" 
-                            class="w-1/3 bg-transparent outline-none border-b border-transparent focus:border-indigo-500 text-sm">
-                        
-                        <div class="flex gap-1 items-center">
-                            <input type="number" value="${m.scoreA||0}" onchange="edit('${m.key}','scoreA',Number(this.value))" 
-                                class="w-8 text-center bg-slate-100 rounded text-sm py-1 outline-none">
-                            <span class="text-slate-300 text-xs">-</span>
-                            <input type="number" value="${m.scoreB||0}" onchange="edit('${m.key}','scoreB',Number(this.value))" 
-                                class="w-8 text-center bg-slate-100 rounded text-sm py-1 outline-none">
-                        </div>
-
-                        <input type="text" value="${m.teamB}" onchange="edit('${m.key}', 'teamB', this.value)" 
-                            class="w-1/3 text-right bg-transparent outline-none border-b border-transparent focus:border-indigo-500 text-sm">
-                    </div>
-                    
-                    <button onclick="del('${m.key}')" class="absolute bottom-2 right-2 text-slate-200 hover:text-red-500 p-2 text-xs">×</button>
                 `;
                 list.appendChild(card);
             });
-
-            // Show cleanup button if spam detected
-            if(spamCount > 0) {
-                cleanBtn.classList.remove('hidden');
-                cleanBtn.innerText = `Delete ${spamCount} Test Matches`;
-            } else {
-                cleanBtn.classList.add('hidden');
-            }
         });
 
-        // ACTIONS
-        window.edit = (key, field, val) => update(ref(db, `tournaments/${eventId}/schedule/${key}`), { [field]: val });
-        window.del = (key) => { if(confirm("Delete match?")) set(ref(db, `tournaments/${eventId}/schedule/${key}`), null); };
-        window.addMatch = () => push(ref(db, `tournaments/${eventId}/schedule`), { timeSlot: "09:00", field: 1, teamA: "Team A", teamB: "Team B", scoreA: 0, scoreB: 0 });
+        // --- TAB 2: GENERATOR LOGIC ---
+        window.generateAndUpload = async () => {
+            const status = document.getElementById('uploadStatus');
+            status.innerText = "Generating...";
+            
+            const teams = document.getElementById('teamInput').value.split('\n').filter(t => t.trim());
+            if(teams.length < 2) { status.innerText = "Error: Need at least 2 teams."; return; }
 
-        window.cleanSpam = () => {
-            if(confirm("This will delete all matches named 'Team A' vs 'Team B'. Continue?")) {
-                get(ref(db, `tournaments/${eventId}/schedule`)).then(snap => {
-                    snap.forEach(c => {
-                        const m = c.val();
-                        if(m.teamA === "Team A" && m.teamB === "Team B") {
-                            set(ref(db, `tournaments/${eventId}/schedule/${c.key}`), null);
-                        }
-                    });
-                });
+            const pitchCount = parseInt(document.getElementById('pitchCount').value);
+            const slotDur = parseInt(document.getElementById('gameDur').value) + 5;
+            const START_MINS = 9 * 60; 
+
+            // 1. Create Matchups
+            let queue = [];
+            for(let i=0; i<teams.length; i++) {
+                for(let j=i+1; j<teams.length; j++) {
+                    queue.push({ teamA: teams[i], teamB: teams[j] });
+                }
             }
+
+            // 2. Assign Times
+            let pitchClocks = Array(pitchCount).fill(0);
+            const matches = queue.map(m => {
+                let bestPitch = 0;
+                for(let p=1; p<pitchCount; p++) {
+                    if (pitchClocks[p] < pitchClocks[bestPitch]) bestPitch = p;
+                }
+                const startTime = START_MINS + pitchClocks[bestPitch];
+                const timeStr = `${String(Math.floor(startTime/60)).padStart(2,'0')}:${String(startTime%60).padStart(2,'0')}`;
+                
+                pitchClocks[bestPitch] += slotDur;
+
+                return {
+                    ...m, timeSlot: timeStr, field: bestPitch + 1, 
+                    scoreA: 0, scoreB: 0, status: 'scheduled', division: 'League'
+                };
+            });
+
+            // 3. UPLOAD
+            status.innerText = `Uploading ${matches.length} matches...`;
+            const refSchedule = ref(db, `tournaments/${eventId}/schedule`);
+            
+            await set(refSchedule, null); // Wipe old
+            for(const m of matches) {
+                await push(refSchedule, m);
+            }
+
+            status.innerText = "Success! Switching tabs...";
+            setTimeout(() => switchTab('run'), 800);
         };
 
+        // --- ACTIONS ---
+        window.switchTab = (tab) => {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(`view-${tab}`).classList.add('active');
+            document.getElementById(`tab-${tab}`).classList.add('active');
+        };
+
+        window.edit = (key, field, val) => update(ref(db, `tournaments/${eventId}/schedule/${key}`), { [field]: val });
+        
         window.goLive = async (key) => {
             const snap = await get(ref(db, `tournaments/${eventId}/schedule/${key}`));
             const m = snap.val();
             update(ref(db, `tournaments/${eventId}/match`), {
                 teamA: m.teamA, teamB: m.teamB, scoreA: m.scoreA, scoreB: m.scoreB,
-                time: 1200, isRunning: false, scheduleKey: key, division: m.division || '', isFinal: false
+                time: 1200, isRunning: false, scheduleKey: key
             });
             update(ref(db, `tournaments/${eventId}/schedule/${key}`), { status: 'live' });
         };
-
-        window.stopGame = (key) => {
-            if(confirm("Stop Broadcasting?")) {
-                update(ref(db, `tournaments/${eventId}/schedule/${key}`), { status: 'finished' });
-                update(ref(db, `tournaments/${eventId}/match`), { isRunning: false });
-            }
-        }
     </script>
 </body>
 </html>
