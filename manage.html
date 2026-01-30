@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Director Suite Fixed</title>
+    <title>Director Suite (Self-Contained)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .tab-content { display: none; }
@@ -78,12 +78,39 @@
     </div>
 
     <script type="module">
-        // 1. IMPORT FIREBASE (Using Stable 10.7.1)
-        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getDatabase, ref, onValue, update, set, push, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-        import { app, db } from './firebase-config.js';
+        // ------------------------------------------------------------------
+        // 1. CONFIGURATION (PASTE YOUR KEYS HERE)
+        // ------------------------------------------------------------------
+        
+        // !!! IMPORTANT: Copy the object inside 'firebaseConfig' from your firebase-config.js file
+        // and paste it below, replacing the placeholder.
+        
+        const firebaseConfig = {
+             apiKey: "AIzaSyB421IaC3NQIDnYvNA7oVYgvfwYG-8aT4o",
+  authDomain: "tournament-champ.firebaseapp.com",
+  databaseURL: "https://tournament-champ-default-rtdb.firebaseio.com",
+  projectId: "tournament-champ",
+  storageBucket: "tournament-champ.firebasestorage.app",
+  messagingSenderId: "65472067494",
+  appId: "1:65472067494:web:ba7298e7378e7604354167",
+  measurementId: "G-2C3LWDC2X3"
+        };
+        
+        // ------------------------------------------------------------------
+        // 2. IMPORTS (ALL SAME VERSION 10.8.1)
+        // ------------------------------------------------------------------
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getDatabase, ref, onValue, update, set, push, get } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
-        // --- GLOBAL FUNCTION EXPORTS (Fix for "switchTab not defined") ---
+        // Initialize App LOCAL to this file (No version mismatch possible)
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const auth = getAuth(app);
+
+        // ------------------------------------------------------------------
+        // 3. GLOBAL FUNCTIONS (Attached to Window)
+        // ------------------------------------------------------------------
         window.switchTab = (tab) => {
             document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active'));
             document.querySelectorAll('.nav-btn').forEach(e => e.classList.remove('active'));
@@ -151,7 +178,9 @@
             setTimeout(() => window.switchTab('dashboard'), 500);
         };
 
-        // --- MAIN LOGIC ---
+        // ------------------------------------------------------------------
+        // 4. MAIN LOGIC
+        // ------------------------------------------------------------------
         try {
             const params = new URLSearchParams(window.location.search);
             window.eventId = params.get('event');
@@ -162,7 +191,6 @@
             }
             document.getElementById('eventIdDisplay').innerText = `ID: ${window.eventId}`;
 
-            const auth = getAuth(app);
             onAuthStateChanged(auth, u => {
                 const badge = document.getElementById('statusBadge');
                 if(u) { badge.innerText = "Online"; badge.className = "bg-green-500 text-white text-xs px-2 py-1 rounded font-bold"; }
