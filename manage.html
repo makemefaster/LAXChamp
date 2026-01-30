@@ -3,61 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tournament Master</title>
+    <title>Director Suite v2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-        .nav-btn.active { background-color: #4f46e5; color: white; }
+        .nav-btn { opacity: 0.6; }
+        .nav-btn.active { opacity: 1; border-bottom: 2px solid white; }
     </style>
 </head>
-<body class="bg-slate-100 min-h-screen font-sans text-slate-800 pb-20">
+<body class="bg-slate-100 min-h-screen font-sans text-slate-800 pb-24">
 
-    <div class="bg-slate-900 text-white p-4 sticky top-0 z-50 shadow-md">
-        <div class="flex justify-between items-center mb-2">
-            <h1 class="font-black text-xl">🏆 Tournament Master</h1>
-            <div id="connectionStatus" class="text-[10px] bg-slate-800 px-2 py-1 rounded text-green-400 font-mono">Connecting...</div>
+    <div class="bg-indigo-900 text-white shadow-lg sticky top-0 z-50">
+        <div class="p-4 flex justify-between items-center">
+            <div>
+                <h1 class="font-black text-lg tracking-tight">DIRECTOR SUITE</h1>
+                <div class="text-[10px] font-mono text-indigo-300" id="eventIdDisplay">Connecting...</div>
+            </div>
+            <div id="statusBadge" class="bg-indigo-800 text-xs px-2 py-1 rounded font-bold">Offline</div>
         </div>
-        <div class="text-xs text-slate-400 font-mono">Event ID: <span id="eventIdDisplay" class="text-white font-bold">---</span></div>
         
-        <div class="flex bg-slate-800 p-1 rounded-lg mt-3">
-            <button onclick="switchTab('run')" id="tab-run" class="nav-btn active flex-1 py-2 rounded text-xs font-bold transition">📡 DIRECTOR (Run)</button>
-            <button onclick="switchTab('setup')" id="tab-setup" class="nav-btn flex-1 py-2 rounded text-xs font-bold transition text-slate-400 hover:text-white">⚙️ SETUP (Reset)</button>
+        <div class="flex text-xs font-bold uppercase tracking-wider text-center">
+            <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn active flex-1 py-3 hover:bg-indigo-800 transition">
+                📺 Live
+            </button>
+            <button onclick="switchTab('editor')" id="nav-editor" class="nav-btn flex-1 py-3 hover:bg-indigo-800 transition">
+                ✏️ Edit
+            </button>
+            <button onclick="switchTab('generator')" id="nav-generator" class="nav-btn flex-1 py-3 hover:bg-indigo-800 transition">
+                ⚙️ New
+            </button>
         </div>
     </div>
 
-    <div id="view-run" class="tab-content active p-4 max-w-xl mx-auto">
-        <div id="matchList" class="space-y-3">
-            <div class="text-center py-10 text-slate-400 animate-pulse">Waiting for schedule...</div>
+    <div id="view-dashboard" class="tab-content active p-4 max-w-xl mx-auto">
+        <div id="liveFeed" class="space-y-3">
+            <div class="text-center py-12 text-slate-400">
+                <p class="mb-2">No schedule loaded.</p>
+                <button onclick="switchTab('generator')" class="text-indigo-600 font-bold underline">Create Schedule</button>
+            </div>
         </div>
     </div>
 
-    <div id="view-setup" class="tab-content p-4 max-w-xl mx-auto">
+    <div id="view-editor" class="tab-content p-4 max-w-xl mx-auto">
+        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+            <p class="text-xs text-yellow-700 font-bold">Editing Mode Active</p>
+            <p class="text-[10px] text-yellow-600">Changes save automatically.</p>
+        </div>
+        <div id="editorFeed" class="space-y-4">
+            </div>
+    </div>
+
+    <div id="view-generator" class="tab-content p-4 max-w-xl mx-auto">
         <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-            <h2 class="font-bold text-lg mb-4 text-indigo-900">⚠️ Factory Reset</h2>
-            <p class="text-xs text-slate-500 mb-4">This will DELETE the current schedule and create a new conflict-free one.</p>
+            <h2 class="font-bold text-lg mb-4 text-slate-700">Create New Schedule</h2>
             
-            <div class="grid grid-cols-2 gap-4 mb-4">
+            <div class="space-y-4">
                 <div>
-                    <label class="text-[10px] font-bold uppercase text-slate-400">Teams</label>
-                    <textarea id="teamInput" class="w-full h-24 p-2 border rounded text-xs font-mono" placeholder="1w&#10;2&#10;3&#10;4&#10;5&#10;6"></textarea>
+                    <label class="text-[10px] font-bold uppercase text-slate-400">Teams (One per line)</label>
+                    <textarea id="genTeams" class="w-full h-32 p-3 border rounded text-sm font-mono focus:ring-2 ring-indigo-500 outline-none" placeholder="Hurricanes&#10;Lions&#10;Tigers"></textarea>
                 </div>
-                <div class="space-y-2">
+                
+                <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="text-[10px] font-bold uppercase text-slate-400">Pitches</label>
-                        <input type="number" id="pitchCount" value="2" class="w-full p-2 border rounded text-sm font-bold">
+                        <input type="number" id="genPitches" value="2" class="w-full p-2 border rounded font-bold">
                     </div>
                     <div>
-                        <label class="text-[10px] font-bold uppercase text-slate-400">Mins/Game</label>
-                        <input type="number" id="gameDur" value="20" class="w-full p-2 border rounded text-sm font-bold">
+                        <label class="text-[10px] font-bold uppercase text-slate-400">Duration (Mins)</label>
+                        <input type="number" id="genDur" value="20" class="w-full p-2 border rounded font-bold">
                     </div>
                 </div>
-            </div>
 
-            <button onclick="generateAndUpload()" class="w-full bg-red-50 text-red-600 border border-red-200 font-bold py-3 rounded-xl hover:bg-red-100 transition">
-                🚀 Generate Conflict-Free Schedule
-            </button>
-            <div id="uploadStatus" class="text-center text-xs font-bold mt-2 h-4 text-slate-400"></div>
+                <button onclick="runGenerator()" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-indigo-500 transition">
+                    Generate & Load 🚀
+                </button>
+                <div id="genLog" class="text-xs text-center text-slate-400 h-4 mt-2"></div>
+            </div>
         </div>
     </div>
 
@@ -66,29 +88,31 @@
         import { getDatabase, ref, onValue, update, set, push, get } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
         import { app, db } from './firebase-config.js';
 
+        // 1. SETUP & AUTH
         const params = new URLSearchParams(window.location.search);
         let eventId = params.get('event');
         
         if(!eventId) {
-            eventId = prompt("Enter Event ID:", "Test1");
+            eventId = prompt("Enter Event ID (e.g. 'Tournament1'):", "Tournament1");
             if(eventId) window.location.search = `?event=${eventId}`;
         }
-        
-        document.getElementById('eventIdDisplay').innerText = eventId;
+        document.getElementById('eventIdDisplay').innerText = `ID: ${eventId}`;
 
         const auth = getAuth(app);
         onAuthStateChanged(auth, u => {
-            if(!u) window.location.href = "director.html"; 
-            else document.getElementById('connectionStatus').innerText = "Online • Logged In";
+            const badge = document.getElementById('statusBadge');
+            if(u) { badge.innerText = "Online"; badge.className = "bg-green-500 text-white text-xs px-2 py-1 rounded font-bold"; }
+            else { window.location.href = "director.html"; }
         });
 
-        // --- TAB 1: MANAGER LOGIC ---
+        // 2. MAIN DATA LISTENER
         onValue(ref(db, `tournaments/${eventId}/schedule`), (snap) => {
-            const list = document.getElementById('matchList');
-            list.innerHTML = '';
-
+            const liveContainer = document.getElementById('liveFeed');
+            const editContainer = document.getElementById('editorFeed');
+            
             if(!snap.exists()) {
-                list.innerHTML = `<div class="text-center py-10 text-slate-400">No Schedule Found. Go to SETUP.</div>`;
+                liveContainer.innerHTML = `<div class='text-center py-10 text-slate-400'>No matches found.<br>Go to 'NEW' tab.</div>`;
+                editContainer.innerHTML = "";
                 return;
             }
 
@@ -98,14 +122,42 @@
             // Sort by Time
             matches.sort((a,b) => (a.timeSlot || "00:00").localeCompare(b.timeSlot || "00:00"));
 
-            document.getElementById('connectionStatus').innerText = `Online • ${matches.length} Matches`;
+            // RENDER BOTH VIEWS
+            renderLiveView(matches, liveContainer);
+            renderEditorView(matches, editContainer);
+        });
 
-            matches.forEach((m, i) => {
-                const safeTime = m.timeSlot || "00:00";
+        // 3. RENDERERS
+        function renderLiveView(matches, container) {
+            container.innerHTML = '';
+            matches.forEach(m => {
+                const isLive = m.status === 'live';
                 const card = document.createElement('div');
-                card.className = `bg-white p-3 rounded-xl shadow-sm border border-slate-200 relative`;
-                if(m.status === 'live') card.className += " ring-2 ring-indigo-500 border-indigo-500";
-
+                card.className = `bg-white p-4 rounded-xl shadow-sm border-l-4 ${isLive ? 'border-l-green-500 ring-1 ring-green-100' : 'border-l-indigo-500'} relative`;
+                
                 card.innerHTML = `
-                    <div class="flex justify-between items-center mb-2 pb-2 border-b border
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="text-xs font-bold text-slate-400 uppercase tracking-wide">
+                            ${m.timeSlot} <span class="mx-1">•</span> Pitch ${m.field}
+                        </div>
+                        ${isLive 
+                            ? `<span class="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded animate-pulse">ON AIR</span>`
+                            : `<button onclick="goLive('${m.key}')" class="bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-500 text-[10px] font-bold px-3 py-1 rounded transition">GO LIVE</button>`
+                        }
+                    </div>
+                    <div class="flex justify-between items-center text-lg font-bold text-slate-800">
+                        <span class="w-5/12 truncate">${m.teamA}</span>
+                        <div class="text-slate-300 text-sm">vs</div>
+                        <span class="w-5/12 truncate text-right">${m.teamB}</span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderEditorView(matches, container) {
+            container.innerHTML = '';
+            matches.forEach((m, i) => {
+                const card = document.createElement('div');
+                card.className = "bg-white p-4 rounded-xl shadow-sm border
                     
