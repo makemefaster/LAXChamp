@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Director Suite v2</title>
+    <title>Director Suite Fixed</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .tab-content { display: none; }
@@ -14,23 +14,27 @@
 </head>
 <body class="bg-slate-100 min-h-screen font-sans text-slate-800 pb-24">
 
+    <div id="scriptError" class="hidden bg-red-600 text-white p-4 text-center font-bold sticky top-0 z-[60]">
+        ⚠️ Script Error: See Console
+    </div>
+
     <div class="bg-indigo-900 text-white shadow-lg sticky top-0 z-50">
         <div class="p-4 flex justify-between items-center">
             <div>
                 <h1 class="font-black text-lg tracking-tight">DIRECTOR SUITE</h1>
-                <div class="text-[10px] font-mono text-indigo-300" id="eventIdDisplay">Connecting...</div>
+                <div class="text-[10px] font-mono text-indigo-300" id="eventIdDisplay">Initializing...</div>
             </div>
             <div id="statusBadge" class="bg-indigo-800 text-xs px-2 py-1 rounded font-bold">Offline</div>
         </div>
         
         <div class="flex text-xs font-bold uppercase tracking-wider text-center">
-            <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn active flex-1 py-3 hover:bg-indigo-800 transition">
+            <button onclick="window.switchTab('dashboard')" id="nav-dashboard" class="nav-btn active flex-1 py-3 hover:bg-indigo-800 transition">
                 📺 Live
             </button>
-            <button onclick="switchTab('editor')" id="nav-editor" class="nav-btn flex-1 py-3 hover:bg-indigo-800 transition">
+            <button onclick="window.switchTab('editor')" id="nav-editor" class="nav-btn flex-1 py-3 hover:bg-indigo-800 transition">
                 ✏️ Edit
             </button>
-            <button onclick="switchTab('generator')" id="nav-generator" class="nav-btn flex-1 py-3 hover:bg-indigo-800 transition">
+            <button onclick="window.switchTab('generator')" id="nav-generator" class="nav-btn flex-1 py-3 hover:bg-indigo-800 transition">
                 ⚙️ New
             </button>
         </div>
@@ -38,126 +42,184 @@
 
     <div id="view-dashboard" class="tab-content active p-4 max-w-xl mx-auto">
         <div id="liveFeed" class="space-y-3">
-            <div class="text-center py-12 text-slate-400">
-                <p class="mb-2">No schedule loaded.</p>
-                <button onclick="switchTab('generator')" class="text-indigo-600 font-bold underline">Create Schedule</button>
-            </div>
+            <div class="text-center py-12 text-slate-400">Loading...</div>
         </div>
     </div>
 
     <div id="view-editor" class="tab-content p-4 max-w-xl mx-auto">
         <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
-            <p class="text-xs text-yellow-700 font-bold">Editing Mode Active</p>
-            <p class="text-[10px] text-yellow-600">Changes save automatically.</p>
+            <p class="text-xs text-yellow-700 font-bold">Editing Mode</p>
         </div>
-        <div id="editorFeed" class="space-y-4">
-            </div>
+        <div id="editorFeed" class="space-y-4"></div>
     </div>
 
     <div id="view-generator" class="tab-content p-4 max-w-xl mx-auto">
         <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
             <h2 class="font-bold text-lg mb-4 text-slate-700">Create New Schedule</h2>
-            
             <div class="space-y-4">
                 <div>
                     <label class="text-[10px] font-bold uppercase text-slate-400">Teams (One per line)</label>
                     <textarea id="genTeams" class="w-full h-32 p-3 border rounded text-sm font-mono focus:ring-2 ring-indigo-500 outline-none" placeholder="Hurricanes&#10;Lions&#10;Tigers"></textarea>
                 </div>
-                
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="text-[10px] font-bold uppercase text-slate-400">Pitches</label>
                         <input type="number" id="genPitches" value="2" class="w-full p-2 border rounded font-bold">
                     </div>
                     <div>
-                        <label class="text-[10px] font-bold uppercase text-slate-400">Duration (Mins)</label>
+                        <label class="text-[10px] font-bold uppercase text-slate-400">Mins</label>
                         <input type="number" id="genDur" value="20" class="w-full p-2 border rounded font-bold">
                     </div>
                 </div>
-
-                <button onclick="runGenerator()" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-indigo-500 transition">
-                    Generate & Load 🚀
-                </button>
+                <button onclick="window.runGenerator()" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-indigo-500 transition">Generate & Load 🚀</button>
                 <div id="genLog" class="text-xs text-center text-slate-400 h-4 mt-2"></div>
             </div>
         </div>
     </div>
 
     <script type="module">
-        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-        import { getDatabase, ref, onValue, update, set, push, get } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+        // 1. IMPORT FIREBASE (Using Stable 10.7.1)
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getDatabase, ref, onValue, update, set, push, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
         import { app, db } from './firebase-config.js';
 
-        // 1. SETUP & AUTH
-        const params = new URLSearchParams(window.location.search);
-        let eventId = params.get('event');
+        // --- GLOBAL FUNCTION EXPORTS (Fix for "switchTab not defined") ---
+        window.switchTab = (tab) => {
+            document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(e => e.classList.remove('active'));
+            document.getElementById(`view-${tab}`).classList.add('active');
+            document.getElementById(`nav-${tab}`).classList.add('active');
+        };
+
+        window.updateDb = (key, field, val) => update(ref(db, `tournaments/${window.eventId}/schedule/${key}`), { [field]: val });
+        window.deleteMatch = (key) => { if(confirm("Delete?")) set(ref(db, `tournaments/${window.eventId}/schedule/${key}`), null); };
         
-        if(!eventId) {
-            eventId = prompt("Enter Event ID (e.g. 'Tournament1'):", "Tournament1");
-            if(eventId) window.location.search = `?event=${eventId}`;
-        }
-        document.getElementById('eventIdDisplay').innerText = `ID: ${eventId}`;
+        window.goLive = async (key) => {
+            const snap = await get(ref(db, `tournaments/${window.eventId}/schedule/${key}`));
+            const m = snap.val();
+            update(ref(db, `tournaments/${window.eventId}/match`), {
+                teamA: m.teamA, teamB: m.teamB, scoreA: m.scoreA, scoreB: m.scoreB,
+                time: 1200, isRunning: false, scheduleKey: key
+            });
+            update(ref(db, `tournaments/${window.eventId}/schedule/${key}`), { status: 'live' });
+        };
 
-        const auth = getAuth(app);
-        onAuthStateChanged(auth, u => {
-            const badge = document.getElementById('statusBadge');
-            if(u) { badge.innerText = "Online"; badge.className = "bg-green-500 text-white text-xs px-2 py-1 rounded font-bold"; }
-            else { window.location.href = "director.html"; }
-        });
+        window.runGenerator = async () => {
+            const log = document.getElementById('genLog');
+            log.innerText = "Generating...";
+            const teams = document.getElementById('genTeams').value.split('\n').filter(t => t.trim());
+            const pitchCount = parseInt(document.getElementById('genPitches').value);
+            const slotDur = parseInt(document.getElementById('genDur').value) + 5;
+            const START_MINS = 9 * 60; 
 
-        // 2. MAIN DATA LISTENER
-        onValue(ref(db, `tournaments/${eventId}/schedule`), (snap) => {
-            const liveContainer = document.getElementById('liveFeed');
-            const editContainer = document.getElementById('editorFeed');
-            
-            if(!snap.exists()) {
-                liveContainer.innerHTML = `<div class='text-center py-10 text-slate-400'>No matches found.<br>Go to 'NEW' tab.</div>`;
-                editContainer.innerHTML = "";
-                return;
+            if(teams.length < 2) { alert("Need 2+ teams"); return; }
+
+            // Matchups
+            let queue = [];
+            for(let i=0; i<teams.length; i++) {
+                for(let j=i+1; j<teams.length; j++) {
+                    queue.push({ teamA: teams[i], teamB: teams[j] });
+                }
             }
 
-            const matches = [];
-            snap.forEach(c => matches.push({key: c.key, ...c.val()}));
-            
-            // Sort by Time
-            matches.sort((a,b) => (a.timeSlot || "00:00").localeCompare(b.timeSlot || "00:00"));
+            // Schedule
+            let pitchFree = Array(pitchCount).fill(START_MINS);
+            let teamFree = {};
+            teams.forEach(t => teamFree[t] = START_MINS);
 
-            // RENDER BOTH VIEWS
-            renderLiveView(matches, liveContainer);
-            renderEditorView(matches, editContainer);
-        });
-
-        // 3. RENDERERS
-        function renderLiveView(matches, container) {
-            container.innerHTML = '';
-            matches.forEach(m => {
-                const isLive = m.status === 'live';
-                const card = document.createElement('div');
-                card.className = `bg-white p-4 rounded-xl shadow-sm border-l-4 ${isLive ? 'border-l-green-500 ring-1 ring-green-100' : 'border-l-indigo-500'} relative`;
+            const schedule = queue.map(m => {
+                let bestP = -1, bestT = Infinity;
+                for(let p=0; p<pitchCount; p++) {
+                    const t = Math.max(pitchFree[p], teamFree[m.teamA], teamFree[m.teamB]);
+                    if(t < bestT) { bestT = t; bestP = p; }
+                }
+                const end = bestT + slotDur;
+                pitchFree[bestP] = end;
+                teamFree[m.teamA] = end;
+                teamFree[m.teamB] = end;
+                const hh = Math.floor(bestT/60).toString().padStart(2,'0');
+                const mm = (bestT%60).toString().padStart(2,'0');
                 
-                card.innerHTML = `
-                    <div class="flex justify-between items-start mb-2">
-                        <div class="text-xs font-bold text-slate-400 uppercase tracking-wide">
-                            ${m.timeSlot} <span class="mx-1">•</span> Pitch ${m.field}
-                        </div>
-                        ${isLive 
-                            ? `<span class="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded animate-pulse">ON AIR</span>`
-                            : `<button onclick="goLive('${m.key}')" class="bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-500 text-[10px] font-bold px-3 py-1 rounded transition">GO LIVE</button>`
-                        }
-                    </div>
-                    <div class="flex justify-between items-center text-lg font-bold text-slate-800">
-                        <span class="w-5/12 truncate">${m.teamA}</span>
-                        <div class="text-slate-300 text-sm">vs</div>
-                        <span class="w-5/12 truncate text-right">${m.teamB}</span>
-                    </div>
-                `;
-                container.appendChild(card);
+                return { teamA: m.teamA, teamB: m.teamB, timeSlot: `${hh}:${mm}`, field: bestP+1, scoreA: 0, scoreB: 0, status: 'scheduled' };
             });
-        }
 
-        function renderEditorView(matches, container) {
-            container.innerHTML = '';
-            matches.forEach((m, i) => {
-                const card = document.createElement('div');
-                card.className = "bg-white p-4 rounded-xl shadow-sm border
-                    
+            const refSch = ref(db, `tournaments/${window.eventId}/schedule`);
+            await set(refSch, null);
+            for(const m of schedule) await push(refSch, m);
+            
+            log.innerText = "Done!";
+            setTimeout(() => window.switchTab('dashboard'), 500);
+        };
+
+        // --- MAIN LOGIC ---
+        try {
+            const params = new URLSearchParams(window.location.search);
+            window.eventId = params.get('event');
+            
+            if(!window.eventId) {
+                window.eventId = prompt("Enter Event ID:", "Tournament1");
+                if(window.eventId) window.location.search = `?event=${window.eventId}`;
+            }
+            document.getElementById('eventIdDisplay').innerText = `ID: ${window.eventId}`;
+
+            const auth = getAuth(app);
+            onAuthStateChanged(auth, u => {
+                const badge = document.getElementById('statusBadge');
+                if(u) { badge.innerText = "Online"; badge.className = "bg-green-500 text-white text-xs px-2 py-1 rounded font-bold"; }
+                else { window.location.href = "director.html"; }
+            });
+
+            onValue(ref(db, `tournaments/${window.eventId}/schedule`), (snap) => {
+                const live = document.getElementById('liveFeed');
+                const edit = document.getElementById('editorFeed');
+                live.innerHTML = ''; edit.innerHTML = '';
+
+                if(!snap.exists()) {
+                    live.innerHTML = `<div class='text-center py-10 text-slate-400'>No matches.<br><button onclick="window.switchTab('generator')" class="text-indigo-600 font-bold underline">Create New</button></div>`;
+                    return;
+                }
+
+                const matches = [];
+                snap.forEach(c => matches.push({key: c.key, ...c.val()}));
+                matches.sort((a,b) => (a.timeSlot||"").localeCompare(b.timeSlot||""));
+
+                matches.forEach(m => {
+                    // LIVE CARD
+                    const isLive = m.status === 'live';
+                    const div = document.createElement('div');
+                    div.className = `bg-white p-4 rounded-xl shadow-sm border-l-4 ${isLive ? 'border-green-500 ring-1 ring-green-100' : 'border-indigo-500'} mb-3`;
+                    div.innerHTML = `
+                        <div class="flex justify-between mb-2 text-xs font-bold text-slate-400 uppercase">
+                            <span>${m.timeSlot} • P${m.field}</span>
+                            ${isLive ? '<span class="text-green-600 animate-pulse">ON AIR</span>' : `<button onclick="window.goLive('${m.key}')" class="text-indigo-600 hover:underline">GO LIVE</button>`}
+                        </div>
+                        <div class="flex justify-between font-bold text-lg text-slate-800">
+                            <span>${m.teamA}</span><span class="text-slate-300">vs</span><span>${m.teamB}</span>
+                        </div>`;
+                    live.appendChild(div);
+
+                    // EDIT CARD
+                    const ediv = document.createElement('div');
+                    ediv.className = "bg-white p-3 rounded shadow-sm border border-slate-200 mb-3";
+                    ediv.innerHTML = `
+                        <div class="flex gap-2 mb-2">
+                            <input type="time" value="${m.timeSlot}" onchange="window.updateDb('${m.key}','timeSlot',this.value)" class="bg-slate-50 font-bold text-sm p-1 rounded w-20">
+                            <input type="number" value="${m.field}" onchange="window.updateDb('${m.key}','field',Number(this.value))" class="bg-slate-50 font-bold text-sm p-1 rounded w-10 text-center">
+                            <button onclick="window.deleteMatch('${m.key}')" class="ml-auto text-xs text-red-400">DELETE</button>
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="text" value="${m.teamA}" onchange="window.updateDb('${m.key}','teamA',this.value)" class="flex-1 bg-slate-50 p-1 rounded font-bold text-sm">
+                            <input type="text" value="${m.teamB}" onchange="window.updateDb('${m.key}','teamB',this.value)" class="flex-1 bg-slate-50 p-1 rounded font-bold text-sm text-right">
+                        </div>`;
+                    edit.appendChild(ediv);
+                });
+            });
+
+        } catch (err) {
+            document.getElementById('scriptError').innerText = "Script Error: " + err.message;
+            document.getElementById('scriptError').classList.remove('hidden');
+            console.error(err);
+        }
+    </script>
+</body>
+</html>
