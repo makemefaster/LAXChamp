@@ -3,88 +3,167 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Forensic Manager</title>
+    <title>Director Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Mobile Scroll Fix */
+        html, body { height: 100%; overflow-x: hidden; }
+        .scroll-container { height: calc(100vh - 80px); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .spam-match { border: 2px dashed #fca5a5; background-color: #fef2f2; }
+    </style>
 </head>
-<body class="bg-white min-h-screen p-4 font-mono text-sm">
+<body class="bg-slate-100 font-sans text-slate-800 fixed inset-0">
 
-    <div class="mb-4 border-b pb-4 flex justify-between items-center">
-        <h1 class="font-bold text-xl">Forensic Mode</h1>
-        <div id="status" class="bg-blue-100 text-blue-800 px-2 py-1 rounded">Loading...</div>
+    <div class="bg-indigo-900 text-white p-4 h-[80px] flex justify-between items-center shadow-lg z-20 relative">
+        <div>
+            <h1 class="font-bold text-lg leading-tight">Director Mode</h1>
+            <div id="countTag" class="text-[10px] text-indigo-300">Scanning...</div>
+        </div>
+        <button onclick="cleanSpam()" id="cleanBtn" class="hidden bg-red-500 hover:bg-red-400 text-white text-xs font-bold px-3 py-2 rounded shadow animate-pulse">
+            🗑️ Clear Test Data
+        </button>
     </div>
 
-    <table class="w-full border-collapse border border-slate-400 mb-8">
-        <thead class="bg-slate-100">
-            <tr>
-                <th class="border border-slate-300 p-2">#</th>
-                <th class="border border-slate-300 p-2">Time (Raw)</th>
-                <th class="border border-slate-300 p-2">Pitch</th>
-                <th class="border border-slate-300 p-2">Teams</th>
-                <th class="border border-slate-300 p-2">Action</th>
-            </tr>
-        </thead>
-        <tbody id="tableBody">
-            </tbody>
-    </table>
+    <div id="mainScroll" class="scroll-container p-4 pb-32 space-y-3">
+        </div>
 
-    <h3 class="font-bold mt-8 mb-2">Database Raw Output:</h3>
-    <pre id="rawDump" class="bg-black text-green-400 p-4 rounded overflow-auto h-64 text-xs">Waiting for data...</pre>
+    <button onclick="addMatch()" class="fixed bottom-6 right-6 bg-indigo-600 text-white w-14 h-14 rounded-full shadow-2xl text-3xl flex items-center justify-center hover:bg-indigo-500 z-50 active:scale-95 transition">+</button>
 
     <script type="module">
-        import { getAuth } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-        import { getDatabase, ref, onValue, update, set } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+        import { getDatabase, ref, onValue, update, push, set, get } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
         import { app, db } from './firebase-config.js';
 
         const params = new URLSearchParams(window.location.search);
         const eventId = params.get('event');
-        
-        // 1. DUMP RAW DATA
+        if(!eventId) document.getElementById('mainScroll').innerHTML = "<div class='p-10 text-center'>No Event ID</div>";
+
+        // AUTH CHECK
+        const auth = getAuth(app);
+        onAuthStateChanged(auth, u => { if(!u) window.location.href = "director.html"; });
+
+        // 1. LISTEN TO DATA
         onValue(ref(db, `tournaments/${eventId}/schedule`), (snap) => {
-            const rawBox = document.getElementById('rawDump');
-            const tbody = document.getElementById('tableBody');
-            const status = document.getElementById('status');
+            const list = document.getElementById('mainScroll');
+            const countTag = document.getElementById('countTag');
+            const cleanBtn = document.getElementById('cleanBtn');
+            
+            list.innerHTML = ''; 
 
             if(!snap.exists()) {
-                status.innerText = "Empty DB";
-                rawBox.innerText = "null";
-                tbody.innerHTML = "<tr><td colspan='5' class='text-center p-4'>No Data</td></tr>";
+                countTag.innerText = "0 Matches";
+                list.innerHTML = `<div class="text-center text-slate-400 mt-20">No matches found.</div>`;
                 return;
             }
 
-            // Print the EXACT JSON from DB
-            const val = snap.val();
-            rawBox.innerText = JSON.stringify(val, null, 2);
+            const matches = [];
+            let spamCount = 0;
+            snap.forEach(c => matches.push({key: c.key, ...c.val()}));
 
-            // Convert to Array
-            const matches = Object.keys(val).map(key => ({ key: key, ...val[key] }));
-            status.innerText = `Found ${matches.length} Keys`;
+            // SORT BY TIME
+            matches.sort((a,b) => (a.timeSlot || "00:00").localeCompare(b.timeSlot || "00:00"));
 
-            // 2. RENDER TABLE
-            tbody.innerHTML = '';
+            countTag.innerText = `${matches.length} Matches Found`;
+
             matches.forEach((m, i) => {
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-50";
-                tr.innerHTML = `
-                    <td class="border border-slate-300 p-2 text-center">${i+1}</td>
-                    <td class="border border-slate-300 p-2">
-                        <input type="text" value="${m.timeSlot || ''}" onchange="save('${m.key}','timeSlot',this.value)" class="border p-1 w-20">
-                    </td>
-                    <td class="border border-slate-300 p-2 text-center">
-                        <input type="number" value="${m.field || 1}" onchange="save('${m.key}','field',Number(this.value))" class="border p-1 w-10 text-center">
-                    </td>
-                    <td class="border border-slate-300 p-2">
-                        ${m.teamA} vs ${m.teamB}
-                    </td>
-                    <td class="border border-slate-300 p-2 text-center">
-                         <button onclick="del('${m.key}')" class="text-red-600 font-bold">DELETE</button>
-                    </td>
+                const isSpam = m.teamA === "Team A" && m.teamB === "Team B";
+                if(isSpam) spamCount++;
+
+                // Sanitize Time
+                let cleanTime = m.timeSlot || "";
+                if (cleanTime.length === 4) cleanTime = "0" + cleanTime;
+
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-xl shadow-sm relative mb-3 ${isSpam ? 'spam-match' : 'bg-white border border-slate-200'}`;
+                if(m.status === 'live') card.className += " ring-2 ring-green-500 border-green-500";
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-center mb-3 pb-2 border-b ${isSpam?'border-red-200':'border-slate-50'}">
+                        <div class="flex gap-2 items-center">
+                            <span class="text-[10px] text-slate-400 font-mono">#${i+1}</span>
+                            <input type="text" value="${cleanTime}" onchange="edit('${m.key}', 'timeSlot', this.value)" 
+                                class="bg-slate-100 font-bold text-sm px-2 py-1 rounded w-16 text-center outline-none focus:ring-2 ring-indigo-500">
+                            
+                            <div class="flex items-center bg-slate-100 px-2 py-1 rounded">
+                                <span class="text-[10px] font-bold text-slate-400 mr-1">P</span>
+                                <input type="number" value="${m.field || 1}" onchange="edit('${m.key}', 'field', Number(this.value))" 
+                                class="bg-transparent w-4 text-center text-sm font-bold outline-none">
+                            </div>
+                            ${isSpam ? '<span class="text-[10px] font-bold text-red-500 uppercase ml-2">TEST DATA</span>' : ''}
+                        </div>
+                        
+                        <div class="flex gap-1">
+                             ${m.status === 'live' 
+                                ? `<button onclick="stopGame('${m.key}')" class="bg-green-100 text-green-700 px-2 py-1 rounded text-[10px] font-bold animate-pulse">ON AIR</button>`
+                                : `<button onclick="goLive('${m.key}')" class="bg-slate-100 text-slate-500 hover:text-indigo-600 px-2 py-1 rounded text-[10px] font-bold">LIVE</button>`
+                            }
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-center font-bold text-slate-700">
+                        <input type="text" value="${m.teamA}" onchange="edit('${m.key}', 'teamA', this.value)" 
+                            class="w-1/3 bg-transparent outline-none border-b border-transparent focus:border-indigo-500 text-sm">
+                        
+                        <div class="flex gap-1 items-center">
+                            <input type="number" value="${m.scoreA||0}" onchange="edit('${m.key}','scoreA',Number(this.value))" 
+                                class="w-8 text-center bg-slate-100 rounded text-sm py-1 outline-none">
+                            <span class="text-slate-300 text-xs">-</span>
+                            <input type="number" value="${m.scoreB||0}" onchange="edit('${m.key}','scoreB',Number(this.value))" 
+                                class="w-8 text-center bg-slate-100 rounded text-sm py-1 outline-none">
+                        </div>
+
+                        <input type="text" value="${m.teamB}" onchange="edit('${m.key}', 'teamB', this.value)" 
+                            class="w-1/3 text-right bg-transparent outline-none border-b border-transparent focus:border-indigo-500 text-sm">
+                    </div>
+                    
+                    <button onclick="del('${m.key}')" class="absolute bottom-2 right-2 text-slate-200 hover:text-red-500 p-2 text-xs">×</button>
                 `;
-                tbody.appendChild(tr);
+                list.appendChild(card);
             });
+
+            // Show cleanup button if spam detected
+            if(spamCount > 0) {
+                cleanBtn.classList.remove('hidden');
+                cleanBtn.innerText = `Delete ${spamCount} Test Matches`;
+            } else {
+                cleanBtn.classList.add('hidden');
+            }
         });
 
-        window.save = (key, field, val) => update(ref(db, `tournaments/${eventId}/schedule/${key}`), { [field]: val });
-        window.del = (key) => set(ref(db, `tournaments/${eventId}/schedule/${key}`), null);
+        // ACTIONS
+        window.edit = (key, field, val) => update(ref(db, `tournaments/${eventId}/schedule/${key}`), { [field]: val });
+        window.del = (key) => { if(confirm("Delete match?")) set(ref(db, `tournaments/${eventId}/schedule/${key}`), null); };
+        window.addMatch = () => push(ref(db, `tournaments/${eventId}/schedule`), { timeSlot: "09:00", field: 1, teamA: "Team A", teamB: "Team B", scoreA: 0, scoreB: 0 });
+
+        window.cleanSpam = () => {
+            if(confirm("This will delete all matches named 'Team A' vs 'Team B'. Continue?")) {
+                get(ref(db, `tournaments/${eventId}/schedule`)).then(snap => {
+                    snap.forEach(c => {
+                        const m = c.val();
+                        if(m.teamA === "Team A" && m.teamB === "Team B") {
+                            set(ref(db, `tournaments/${eventId}/schedule/${c.key}`), null);
+                        }
+                    });
+                });
+            }
+        };
+
+        window.goLive = async (key) => {
+            const snap = await get(ref(db, `tournaments/${eventId}/schedule/${key}`));
+            const m = snap.val();
+            update(ref(db, `tournaments/${eventId}/match`), {
+                teamA: m.teamA, teamB: m.teamB, scoreA: m.scoreA, scoreB: m.scoreB,
+                time: 1200, isRunning: false, scheduleKey: key, division: m.division || '', isFinal: false
+            });
+            update(ref(db, `tournaments/${eventId}/schedule/${key}`), { status: 'live' });
+        };
+
+        window.stopGame = (key) => {
+            if(confirm("Stop Broadcasting?")) {
+                update(ref(db, `tournaments/${eventId}/schedule/${key}`), { status: 'finished' });
+                update(ref(db, `tournaments/${eventId}/match`), { isRunning: false });
+            }
+        }
     </script>
 </body>
 </html>
