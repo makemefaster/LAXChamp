@@ -3,91 +3,84 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manager (Debug Phase 1)</title>
+    <title>Manager (Phase 2)</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-100 min-h-screen p-4 font-mono text-sm">
+<body class="bg-slate-100 min-h-screen p-4 font-sans text-slate-800">
 
-    <div class="bg-slate-900 text-white p-4 rounded-xl mb-4 flex justify-between items-center shadow-lg">
+    <div class="bg-indigo-900 text-white p-4 rounded-xl mb-6 flex justify-between items-center shadow-lg sticky top-0 z-10">
         <div>
-            <h1 class="font-bold text-lg">Phase 1: Skeleton</h1>
-            <p class="text-xs text-slate-400">Raw Data View</p>
+            <h1 class="font-bold text-lg">Phase 2: Editing</h1>
+            <p class="text-xs text-indigo-300">Try changing a time or pitch.</p>
         </div>
-        <div id="statusTag" class="bg-blue-600 px-3 py-1 rounded font-bold">Connecting...</div>
+        <div id="statusTag" class="text-xs bg-indigo-800 px-3 py-1 rounded-full font-bold">Connecting...</div>
     </div>
 
-    <div id="errorLog" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4"></div>
-
-    <div id="matchList" class="space-y-2">
-        </div>
+    <div id="matchList" class="space-y-3 max-w-xl mx-auto"></div>
 
     <script type="module">
         import { getAuth } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-        import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+        import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
         import { app, db } from './firebase-config.js';
 
         const params = new URLSearchParams(window.location.search);
         const eventId = params.get('event');
-        
-        if(!eventId) document.body.innerHTML = "<h1>ERROR: No Event ID</h1>";
+        if(!eventId) document.body.innerHTML = "No Event ID";
 
-        const logError = (msg) => {
-            const el = document.getElementById('errorLog');
-            el.innerText += msg + "\n";
-            el.classList.remove('hidden');
-        };
-
-        // 1. RAW LISTENER
         onValue(ref(db, `tournaments/${eventId}/schedule`), (snap) => {
             const list = document.getElementById('matchList');
             const status = document.getElementById('statusTag');
 
             if(!snap.exists()) {
                 status.innerText = "0 Matches";
-                list.innerHTML = "<div class='p-4 text-center text-slate-400'>Database is Empty</div>";
+                list.innerHTML = "No data.";
                 return;
             }
 
-            // 2. SAFE CONVERSION
+            // 1. CONVERT
             const matches = [];
-            snap.forEach(child => {
-                matches.push({ key: child.key, ...child.val() });
-            });
-
+            snap.forEach(c => matches.push({key: c.key, ...c.val()}));
             status.innerText = `${matches.length} Matches`;
 
-            // 3. RENDER (No Sorting, No Grouping)
+            // 2. SORT (Chronological)
+            matches.sort((a,b) => (a.timeSlot || "00:00").localeCompare(b.timeSlot || "00:00"));
+
+            // 3. RENDER (Flat List with Inputs)
             list.innerHTML = '';
-            
-            matches.forEach((m, i) => {
-                try {
-                    const card = document.createElement('div');
-                    card.className = "bg-white p-3 rounded border border-slate-300 shadow-sm";
-                    
-                    // Sanitize values to prevent crashes if data is missing
-                    const time = m.timeSlot || "NO TIME";
-                    const pitch = m.field || "NO PITCH";
-                    const tA = m.teamA || "???";
-                    const tB = m.teamB || "???";
+            matches.forEach(m => {
+                const card = document.createElement('div');
+                card.className = "bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col gap-3";
+                
+                card.innerHTML = `
+                    <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                        <div class="flex items-center gap-2">
+                            <input type="time" value="${m.timeSlot}" onchange="edit('${m.key}', 'timeSlot', this.value)" 
+                                class="bg-slate-100 font-bold text-sm px-2 py-1 rounded w-24 outline-none focus:ring-2 ring-indigo-500">
+                            
+                            <div class="flex items-center bg-slate-100 px-2 py-1 rounded">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase mr-1">Pitch</span>
+                                <input type="number" value="${m.field}" onchange="edit('${m.key}', 'field', Number(this.value))" 
+                                    class="bg-transparent font-bold text-sm w-8 outline-none text-center">
+                            </div>
+                        </div>
+                        <span class="text-[10px] font-bold text-indigo-400 uppercase">${m.division || 'DIV'}</span>
+                    </div>
 
-                    card.innerHTML = `
-                        <div class="flex justify-between items-center mb-1">
-                            <span class="font-bold text-blue-600">[${i+1}] ${time} @ P${pitch}</span>
-                            <span class="text-xs text-slate-400 font-mono">${m.key.substring(0,4)}...</span>
-                        </div>
-                        <div class="text-lg">
-                            ${tA} <span class="text-slate-300">vs</span> ${tB}
-                        </div>
-                    `;
-                    list.appendChild(card);
-                } catch (err) {
-                    logError(`Failed to render match index ${i}: ${err.message}`);
-                }
+                    <div class="flex justify-between items-center text-lg font-bold text-slate-700">
+                        <span class="truncate w-1/3">${m.teamA}</span>
+                        <span class="text-sm text-slate-300 font-normal">vs</span>
+                        <span class="truncate w-1/3 text-right">${m.teamB}</span>
+                    </div>
+                `;
+                list.appendChild(card);
             });
-
-        }, (err) => {
-            logError("Database Permission Error: " + err.message);
         });
+
+        // ACTION: Update Database
+        window.edit = (key, field, val) => {
+            console.log(`Updating ${key}: ${field} = ${val}`);
+            update(ref(db, `tournaments/${eventId}/schedule/${key}`), { [field]: val });
+        };
     </script>
 </body>
 </html>
